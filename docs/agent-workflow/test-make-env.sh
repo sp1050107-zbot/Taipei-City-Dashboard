@@ -50,6 +50,14 @@ if ENV_OUT="$TMP/dangling" TOKEN_FILE="$TMP/token.txt" "$HERE/make-env.sh" >/dev
 if grep -q 'Traceback' "$TMP/err6"; then fail "symlink target produced a Python traceback"; fi
 grep -qi 'refusing' "$TMP/err6" || fail "symlink target must be refused with a clear message"
 
+# 10. a failed write must not leave a stub that blocks the retry
+# python3 shim applies a tiny file-size limit to the writer only (bash's own here-doc temp file stays unlimited).
+mkdir "$TMP/shim"; REAL_PY="$(command -v python3)"
+printf '#!/usr/bin/env bash\nulimit -f 1\nexec "%s" "$@"\n' "$REAL_PY" > "$TMP/shim/python3"; chmod +x "$TMP/shim/python3"
+if PATH="$TMP/shim:$PATH" ENV_OUT="$TMP/.env6" TOKEN_FILE="$TMP/token.txt" "$HERE/make-env.sh" >/dev/null 2>"$TMP/err7"; then fail "write under a 512-byte file limit should fail"; fi
+[ ! -e "$TMP/.env6" ] || fail "failed write left a stub file behind"
+ENV_OUT="$TMP/.env6" TOKEN_FILE="$TMP/token.txt" "$HERE/make-env.sh" >/dev/null 2>&1 || fail "retry after a failed write must succeed"
+
 # 8. the real upstream template contains every expected key
 ENV_OUT="$TMP/.env5" TOKEN_FILE="$TMP/token.txt" "$HERE/make-env.sh" >/dev/null 2>&1 || fail "real docker/.env.template lacks an expected key"
 echo PASS

@@ -48,11 +48,22 @@ if missing:
     sys.exit("template is missing expected keys: " + ", ".join(missing))
 
 os.makedirs(os.path.dirname(out), exist_ok=True)
+tmp = out + ".tmp"
 try:
-    fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 except FileExistsError:
     sys.exit(f"refusing to overwrite existing {out}")
-with os.fdopen(fd, "w") as f:
-    f.write("\n".join(lines) + "\n")
+try:
+    with os.fdopen(fd, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    os.link(tmp, out)   # fails if `out` exists (even as a dangling symlink): no-clobber, atomic
+    os.unlink(tmp)
+except FileExistsError:
+    os.unlink(tmp)
+    sys.exit(f"refusing to overwrite existing {out}")
+except BaseException:
+    if os.path.lexists(tmp):
+        os.unlink(tmp)
+    raise
 print(f"wrote {out} (mode 600); set: {', '.join(touched)}")
 PY
