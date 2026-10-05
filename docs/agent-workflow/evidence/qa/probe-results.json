@@ -1,0 +1,124 @@
+[
+  {
+    "page": "dashboard",
+    "url": "http://localhost:8080/dashboard",
+    "nav": "ok",
+    "facts": {
+      "title": "臺北城市儀表板",
+      "path": "/dashboard",
+      "textLen": 1019,
+      "canvas": 0,
+      "mapboxCanvas": 0,
+      "charts": 311,
+      "headings": [
+        "臺北城市儀表板",
+        "Taipei City Dashboard",
+        "公共儀表板",
+        "臺北儀表板",
+        "長照關懷",
+        "圖資資訊",
+        "雙北儀表板",
+        "長照關懷"
+      ],
+      "inputs": [
+        "checkbox:"
+      ],
+      "bodySample": "臺北城市儀表板 Taipei City Dashboard 儀表板總覽 地圖交叉比對 fullscreen info 登入 keyboard_double_arrow_left 公共儀表板 臺北儀表板 elderly 長照關懷 public 圖資資訊 雙北儀表板 elderly 長照關懷 directions_car 務實交通 public 圖資資訊 elderly 長照關懷 扶養比及老化指數 不定期更新 主計處 | 固定資料 臺北市 "
+    },
+    "consoleErrors": [],
+    "consoleErrorCount": 0,
+    "failed": [
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10h1v879325421za200zd879325421xf1&_p=1791230782357&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu :: net::ERR_ABORTED",
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10h1v879325421za200zd879325421xf1&_p=1791230782357&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AEAAAG :: net::ERR_ABORTED"
+    ],
+    "failedCount": 2,
+    "badResponses": [],
+    "badResponseCount": 0
+  },
+  {
+    "page": "mapview",
+    "url": "http://localhost:8080/mapview",
+    "nav": "ok",
+    "facts": {
+      "title": "臺北城市儀表板",
+      "path": "/mapview",
+      "textLen": 621,
+      "canvas": 1,
+      "mapboxCanvas": 1,
+      "charts": 1,
+      "headings": [
+        "臺北城市儀表板",
+        "Taipei City Dashboard",
+        "公共儀表板",
+        "臺北儀表板",
+        "長照關懷",
+        "圖資資訊",
+        "雙北儀表板",
+        "長照關懷"
+      ],
+      "inputs": [
+        "checkbox:",
+        "checkbox:",
+        "checkbox:",
+        "checkbox:",
+        "checkbox:",
+        "checkbox:"
+      ],
+      "bodySample": "臺北城市儀表板 Taipei City Dashboard 儀表板總覽 地圖交叉比對 fullscreen info 登入 keyboard_double_arrow_left 公共儀表板 臺北儀表板 elderly 長照關懷 public 圖資資訊 雙北儀表板 elderly 長照關懷 directions_car 務實交通 public 圖資資訊 elderly 長照關懷 基本圖層 自行車道路網圖資 tune map 無空間資料組件"
+    },
+    "consoleErrors": [
+      "[error] User denied Geolocation",
+      "[error] User denied Geolocation",
+      "[warning] [.WebGL-0x11c0052a400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+      "[warning] [.WebGL-0x11c0052a400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+      "[warning] [.WebGL-0x11c0052a400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+      "[warning] [.WebGL-0x11c0052a400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+      "[warning] sources.taipei_building_3d_source: Either \"url\" or \"tiles\" is required."
+    ],
+    "consoleErrorCount": 7,
+    "failed": [
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10v879325421za200zd879325421xf1&_p=1791230789422&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=A :: net::ERR_ABORTED",
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10v879325421za200zd879325421xf1&_p=1791230789422&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AEAAAGQ& :: net::ERR_ABORTED",
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10v879325421za200zd879325421xf1&_p=1791230789422&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AAAAAGQ& :: net::ERR_ABORTED",
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10v879325421za200zd879325421xf1&_p=1791230789422&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AEAAAGQ& :: net::ERR_ABORTED"
+    ],
+    "failedCount": 4,
+    "badResponses": [],
+    "badResponseCount": 0
+  },
+  {
+    "page": "admin",
+    "url": "http://localhost:8080/admin",
+    "nav": "ok",
+    "facts": {
+      "title": "臺北城市儀表板",
+      "path": "/dashboard",
+      "textLen": 1020,
+      "canvas": 0,
+      "mapboxCanvas": 0,
+      "charts": 311,
+      "headings": [
+        "臺北城市儀表板",
+        "Taipei City Dashboard",
+        "公共儀表板",
+        "臺北儀表板",
+        "長照關懷",
+        "圖資資訊",
+        "雙北儀表板",
+        "長照關懷"
+      ],
+      "inputs": [
+        "checkbox:"
+      ],
+      "bodySample": "臺北城市儀表板 Taipei City Dashboard 儀表板總覽 地圖交叉比對 fullscreen info 登入 keyboard_double_arrow_left 公共儀表板 臺北儀表板 elderly 長照關懷 public 圖資資訊 雙北儀表板 elderly 長照關懷 directions_car 務實交通 public 圖資資訊 elderly 長照關懷 扶養比及老化指數 不定期更新 主計處 | 固定資料 臺北市 "
+    },
+    "consoleErrors": [],
+    "consoleErrorCount": 0,
+    "failed": [
+      "POST https://analytics.google.com/g/collect?v=2&tid=G-0KD9XLZ7W3&gtm=45je6a10v879325421za200zd879325421xf1&_p=1791230802252&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=A :: net::ERR_ABORTED"
+    ],
+    "failedCount": 1,
+    "badResponses": [],
+    "badResponseCount": 0
+  }
+]

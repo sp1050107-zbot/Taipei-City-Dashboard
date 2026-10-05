@@ -940,22 +940,20 @@ Expected: `FE 200` 與標題含「臺北城市儀表板」（來自 `VITE_APP_TI
 6. 容器清單、`docker stats` 記憶體、`docker image ls --digests`（Task 8 Step 2；記錄 `latest` 映像的 digest）。
 7. 已知差異：3D 建物圖層（`VITE_MAPBOXTILE` 留空）與行政區邊界（`/geo_server/...` 示範環境沒有）。
 
-- [ ] **Step 2: 瀏覽器驗收（gstack）**
+- [ ] **Step 2: 瀏覽器驗收（gstack QA 原則：只觀察、不修、附證據）**
 
-以 gstack 的 `/qa-only` 對 `http://localhost:8080/dashboard` 與 `http://localhost:8080/mapview` 做瀏覽器檢查：頁面載入、至少一個儀表板圖表有資料、`/mapview` 的底圖有渲染（Mapbox 底圖需要 token；3D 建物與行政區不在驗收範圍）、console 無致命錯誤。截圖存 `docs/agent-workflow/evidence/`。管理後台 `http://localhost:8080/admin`：以 `docker/.env` 裡的 `DASHBOARD_DEFAULT_USERNAME` 與 `DASHBOARD_DEFAULT_PASSWORD` 登入（本機開發 app 的測試帳密，由 session 讀檔輸入，不得貼到對話或證據檔），僅記錄「登入成功/失敗」。
-Expected: 每個項目在證據檔標 `PASS` 或 `FAIL（原因）`。
+用 Playwright（`NODE_PATH=~/gstack/node_modules`）執行 `docs/agent-workflow/evidence/qa/qa-probe.js`：對 `http://localhost:8080/dashboard`、`/mapview`、`/admin` 取得 console 錯誤、失敗請求、DOM 事實與截圖，並實際看截圖確認圖表與底圖有渲染。3D 建物與行政區圖層的錯誤屬預期。管理員登入：`docker/.env` 受祕密讀取防護保護，代理不得讀取；標為「未驗證」並交由使用者自行登入。
+Expected: 每頁在證據檔標 `PASS` 或 `FAIL（原因）`。
 
-- [ ] **Step 3: 驗證證據檔沒有祕密**
+- [ ] **Step 3: 驗證證據檔沒有祕密（不讀取 `docker/.env`）**
 
 ```bash
 cd ~/Taipei-City-Dashboard
-T="$(cat mapbox-key.txt | tr -d '[:space:]')"
-grep -rF "$T" docs/ MEMORY.md CLAUDE.md AGENTS.md .planning && { echo "TOKEN LEAK"; exit 1; } || echo "no token in tracked docs"
-for k in JWT_SECRET DB_DASHBOARD_PASSWORD DB_MANAGER_PASSWORD DASHBOARD_DEFAULT_PASSWORD QDRANT_API_KEY; do
-  v="$(grep "^$k=" docker/.env | cut -d= -f2-)"; grep -rF "$v" docs/ MEMORY.md .planning && { echo "$k LEAK"; exit 1; }
-done; echo "no secrets in tracked docs"
+T="$(tr -d '[:space:]' < mapbox-key.txt)"
+grep -rlF "$T" docs/ MEMORY.md CLAUDE.md AGENTS.md .planning && { echo "TOKEN LEAK"; exit 1; } || echo "no Mapbox token in tracked docs"
+grep -rnE '\b([0-9a-f]{16}|[0-9a-f]{24})\b' docs/agent-workflow/evidence MEMORY.md CLAUDE.md AGENTS.md | grep -v probe-results.json && { echo "POSSIBLE GENERATED SECRET"; exit 1; } || echo "no generated-secret-shaped strings"
 ```
-Expected: 兩行 `no ...` 訊息，無 `LEAK`。
+Expected: 兩行 `no ...`。（`make-env.sh` 產生的密碼為 16 或 24 位十六進位字串，故用樣式掃描。）
 
 - [ ] **Step 4: Commit（文件類）**
 
