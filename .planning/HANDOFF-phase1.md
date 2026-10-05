@@ -1,7 +1,7 @@
 # Phase 1 交接（GSD → 下一個 session）
 
 ## 目標
-Phase 1（本地 Docker 全容器部署，供 A 學習研究與 B 客製開發）已完成並有實測證據。下一個 session 的工作是規劃並執行 Phase 2（混合式開發環境）。只需讀 `CLAUDE.md` + 本檔；細節依下方路徑讀取。
+Phase 1（本地 Docker 全容器部署，供 A 學習研究與 B 客製開發）已部署並有實測證據；驗收 3/4 項通過，**管理員登入尚待使用者驗證**（spec §1 成功標準 1 因此尚未完全達成）。下一個 session 的工作是規劃並執行 Phase 2（混合式開發環境）。只需讀 `CLAUDE.md` + 本檔；細節依下方路徑讀取。
 
 ## 已決定
 - 運行中：`redis postgres-data postgres-manager qdrant dashboard-fe dashboard-be`（不含 nginx、pgAdmin、vector-db-upgrade）。FE `http://localhost:8080`、BE `http://localhost:8088`。

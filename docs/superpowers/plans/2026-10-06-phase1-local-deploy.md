@@ -111,9 +111,12 @@ def test_state():
     repo = next(r for r in repos if r["local_path"] == os.path.expanduser("~/Taipei-City-Dashboard"))
     assert repo["default_branch"] == "develop"
     assert repo["pull_before_worktree"] is False, "must not pull: develop has unpushed local commits"
-    titles = {t["title"] for t in tasks}
+    by_key = {t["title"].split(" ")[0]: t for t in tasks}
     for t in SEED_TASKS:
-        assert t["title"] in titles, f"seed task missing: {t['title']}"
+        key = t["title"].split(" ")[0]
+        assert key in by_key, f"seed task missing: {key}"
+        assert by_key[key]["title"] == t["title"], f"{key}: title is stale: {by_key[key]['title']!r}"
+        assert by_key[key]["description"] == t["desc"], f"{key}: description is stale"
     return len(wfs), len(repos), len(tasks)
 
 
@@ -192,19 +195,19 @@ WORKFLOWS = {
 
 SEED_TASKS = [
     {"title": "P1-01 文件三件組 CLAUDE.md / AGENTS.md / MEMORY.md", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 2（{PLAN}）。技能：writing-plans 產出的內容直接建檔。完成條件：bash docs/agent-workflow/check-docs.sh 輸出 PASS，且已 commit 到 develop。"},
+     "desc": f"計畫 Task 2（{PLAN}）。完成條件：bash docs/agent-workflow/check-docs.sh 輸出 PASS，且已 commit 到 develop。"},
     {"title": "P1-02 程式碼地圖（GSD）", "exec": EXEC_LOCAL,
      "desc": f"計畫 Task 3（{PLAN}）。技能：gsd-map-codebase。交接檔：CLAUDE.md。完成條件：.planning/codebase/ 至少 4 份文件並 commit。"},
     {"title": "P1-03 Phase 1 部署決策（gstack）", "exec": EXEC_LOCAL,
      "desc": f"計畫 Task 4（{PLAN}）。技能：/plan-eng-review。交接檔：.planning/codebase/ 與該計畫。完成條件：docs/decisions/0001-phase1-deploy-approach.md 含五個標頭並 commit。"},
-    {"title": "P1-04 make-env.sh 與 preflight.sh（worktree）", "exec": EXEC_WORKTREE,
-     "desc": f"計畫 Task 5、6 Step 1（{PLAN}）。技能：superpowers:test-driven-development。完成條件：test-make-env.sh 輸出 PASS，/review 通過，本機 merge 回 develop。"},
+    {"title": "P1-04 make-env.sh（worktree）", "exec": EXEC_WORKTREE,
+     "desc": f"計畫 Task 5（{PLAN}）。技能：superpowers:test-driven-development。完成條件：test-make-env.sh 輸出 PASS，審查通過，經使用者核准後本機 merge 回 develop。"},
     {"title": "P1-05 起基礎設施（DB/Redis/Qdrant）", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 6（{PLAN}）。完成條件：四個容器 healthy/運行，兩個 PostGIS 可連線。"},
+     "desc": f"計畫 Task 6（{PLAN}）。完成條件：四個容器運行（redis、postgres-data、postgres-manager、qdrant），兩個 PostGIS 可連線。"},
     {"title": "P1-06 初始化資料庫與前端相依", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 7（{PLAN}）。完成條件：兩個 DB 有資料表，三個 init 容器 exit 0，並記錄重跑行為。"},
-    {"title": "P1-07 起應用（FE/BE/nginx）", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 8（{PLAN}）。完成條件：FE:8080、BE:8088 回應，git status 乾淨。"},
+     "desc": f"計畫 Task 7（{PLAN}）。完成條件：三個 init 容器 exit 0 且資料列數 > 0（exit 0 不是成功證明；init 不重跑）。"},
+    {"title": "P1-07 起應用（FE/BE）", "exec": EXEC_LOCAL,
+     "desc": f"計畫 Task 8（{PLAN}）。完成條件：FE:8080 回 200，BE /api/v1/dashboard/（帶結尾斜線）回 200，git status 乾淨。BE 啟動需要本地嵌入模型（model_export 為必經）；首次 build 預留 1 小時以上。"},
     {"title": "P1-08 驗收與收尾", "exec": EXEC_LOCAL,
      "desc": f"計畫 Task 9、10（{PLAN}）。技能：/qa-only、verification-before-completion、gsd-extract-learnings。完成條件：docs/agent-workflow/evidence/phase1-verification.md 逐項有證據，MEMORY.md 已更新。"},
 ]
@@ -256,7 +259,7 @@ def ensure_workflow(ws_id, name, desc):
 
 
 def ensure_steps(wf_id):
-    existing = {s["name"]: s for s in call("GET", f"/workflows/{wf_id}/workflow/steps")["steps"]}
+    existing = {s["name"]: s for s in (call("GET", f"/workflows/{wf_id}/workflow/steps")["steps"] or [])}
     for pos, col in enumerate(COLUMNS):
         if col["name"] in existing:
             continue
@@ -265,19 +268,23 @@ def ensure_steps(wf_id):
             "prompt": col["prompt"], "allow_manual_move": True, "is_start_step": pos == 0,
             "stage_type": "custom", "complete_task_on_enter": bool(col.get("done")),
         })
-    return {s["name"]: s for s in call("GET", f"/workflows/{wf_id}/workflow/steps")["steps"]}
+    return {s["name"]: s for s in (call("GET", f"/workflows/{wf_id}/workflow/steps")["steps"] or [])}
 
 
 def ensure_tasks(ws_id, wf_id, backlog_id, repo_id):
-    have = {t["title"] for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
+    """Upsert the seed tasks by their P1-xx key: create missing ones, update stale title/description."""
+    have = {t["title"].split(" ")[0]: t for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
     for t in SEED_TASKS:
-        if t["title"] in have:
-            continue
-        call("POST", "/tasks", {
-            "workspace_id": ws_id, "workflow_id": wf_id, "workflow_step_id": backlog_id,
-            "title": t["title"], "description": t["desc"], "executor_id": t["exec"],
-            "repositories": [{"repository_id": repo_id, "base_branch": "develop"}],
-        })
+        key = t["title"].split(" ")[0]
+        cur = have.get(key)
+        if cur is None:
+            call("POST", "/tasks", {
+                "workspace_id": ws_id, "workflow_id": wf_id, "workflow_step_id": backlog_id,
+                "title": t["title"], "description": t["desc"], "executor_id": t["exec"],
+                "repositories": [{"repository_id": repo_id, "base_branch": "develop"}],
+            })
+        elif cur["title"] != t["title"] or cur.get("description") != t["desc"]:
+            call("PATCH", f"/tasks/{cur['id']}", {"title": t["title"], "description": t["desc"]})
 
 
 def main():
@@ -837,18 +844,19 @@ Expected: 三行皆含 `Exited (0)`。非 0 時用 `docker logs <name> | tail -5
 
 - [ ] **Step 3: 驗收資料表與資料列數（以此為準）**
 
+以容器內的 `postgres` 使用者連線（不需要密碼，也不載入 `docker/.env`）；資料庫名稱 `dashboard`、`dashboardmanager` 是 `.env.template` 的預設值。
+
 ```bash
-set -a; . ./.env; set +a
-docker exec postgres-data psql -U "$DB_DASHBOARD_USER" -d "$DB_DASHBOARD_DBNAME" -tAc "select count(*) from information_schema.tables where table_schema='public'"
-docker exec postgres-data psql -U "$DB_DASHBOARD_USER" -d "$DB_DASHBOARD_DBNAME" -tAc "select relname, n_live_tup from pg_stat_user_tables order by n_live_tup desc limit 5"
-docker exec postgres-manager psql -U "$DB_MANAGER_USER" -d "$DB_MANAGER_DBNAME" -tAc "select count(*) from information_schema.tables where table_schema='public'"
+docker exec postgres-data psql -U postgres -d dashboard -tAc "select count(*) from information_schema.tables where table_schema='public'"
+docker exec postgres-data psql -U postgres -d dashboard -tAc "select relname, n_live_tup from pg_stat_user_tables order by n_live_tup desc limit 5"
+docker exec postgres-manager psql -U postgres -d dashboardmanager -tAc "select count(*) from information_schema.tables where table_schema='public'"
 ```
 Expected: 兩個資料表數量都 > 0，且 dashboard 資料庫最大的幾張表 `n_live_tup` > 0（示範資料約 1.6 萬行 SQL，`db-sample-data/dashboard-demo.sql`）。若表存在但列數為 0，表示載入靜默失敗：不要重跑，改走 Step 5 的重置。
 
 - [ ] **Step 4: 確認有預設管理員**
 
 ```bash
-docker exec postgres-manager psql -U "$DB_MANAGER_USER" -d "$DB_MANAGER_DBNAME" -tAc "select count(*) from auth_users"
+docker exec postgres-manager psql -U postgres -d dashboardmanager -tAc "select count(*) from auth_users"
 ```
 Expected: ≥ 1。（表名不是 `auth_users` 時，用 `\dt` 列出後依實際名稱重查，並把實際名稱記入證據檔。）
 
@@ -880,7 +888,7 @@ docker compose -f docker-compose-db.yaml up -d redis postgres-data postgres-mana
 cd ~/Taipei-City-Dashboard/docker
 time docker compose -f docker-compose.yaml build dashboard-be 2>&1 | tail -30
 ```
-Expected: 建置成功。首次會跑 `model_export`（pip 安裝 + 下載 Hugging Face 的 `intfloat/multilingual-e5-base` 並轉 ONNX）與下載 onnxruntime，**預估 10–30 分鐘（未驗證）**，把實際耗時記入證據檔。失敗時：先原樣重試（已完成的層有快取）；若是 Hugging Face 速率限制，請使用者提供自己的 HF token，以 `docker compose -f docker-compose.yaml build --build-arg HF_TOKEN=... dashboard-be` 重試（token 不得進對話輸出或 commit）。**沒有**「純 golang image」備案：BE 缺模型會 `log.Fatalf`（`app/app.go:47`）。
+Expected: 建置成功。首次會跑 `model_export`（pip 安裝 + 下載 Hugging Face 的 `intfloat/multilingual-e5-base` 並轉 ONNX）與下載 onnxruntime，**實測：第一次超過 1 小時（arm64 會解析到 CUDA 版 PyTorch，數 GB 下載），第二次靠 BuildKit 快取約 10 分鐘；背景指令的時間上限請設最大值 7200000 ms**，把實際耗時記入證據檔。失敗時：先原樣重試（已完成的層有快取）；若是 Hugging Face 速率限制，請使用者提供自己的 HF token，以 `docker compose -f docker-compose.yaml build --build-arg HF_TOKEN=... dashboard-be` 重試（token 不得進對話輸出或 commit）。**沒有**「純 golang image」備案：BE 缺模型會 `log.Fatalf`（`app/app.go:47`）。
 
 - [ ] **Step 2: 啟動 FE 與 BE**
 
@@ -899,10 +907,10 @@ for i in $(seq 1 60); do
   [ "$code" = "200" ] && break; sleep 5
 done
 echo "BE /api/v1/dashboard/ -> $code"
-docker logs dashboard-be 2>&1 | grep -c 'Listening and serving HTTP'
+docker logs dashboard-be 2>&1 | grep -c '0.0.0.0:8080'
 docker logs dashboard-be 2>&1 | tail -15
 ```
-Expected: `200`，且 log 含 `Listening and serving HTTP`。路由是 `GET("/", ...)`（`router.go:137`），不帶結尾斜線會得到 301。若不是 200：BE 沒有專用 health 端點，依 `docker logs` 判斷（是否有 `Fatalf`、資料庫或 Redis 連線錯誤），並把實際回應碼記入證據檔。該路由有 `LimitAPIRequests` 限流，若看到 429 就拉長輪詢間隔並記錄。
+Expected: `200`，且 log 含 `0.0.0.0:8080`（這個 Gin 版本沒有 `Listening and serving HTTP`）。`up` 後約 120 秒才會回 200（含 `go run` 編譯與載入 1.1 GB ONNX 模型）。路由是 `GET("/", ...)`（`router.go:137`），不帶結尾斜線會得到 301。若不是 200：BE 沒有專用 health 端點，依 `docker logs` 判斷（是否有 `Fatalf`、資料庫或 Redis 連線錯誤），並把實際回應碼記入證據檔。該路由有 `LimitAPIRequests` 限流，若看到 429 就拉長輪詢間隔並記錄。
 
 - [ ] **Step 4: 確認 repo 乾淨**
 
@@ -1036,6 +1044,6 @@ Expected: 工作區乾淨；log 可見本計畫每個 Task 的 commit。向使�
 
 **Placeholder scan**：所有程式碼步驟皆附完整程式碼；Task 3、4 的內容由技能產出（無法預先寫死），已給出精確指令、輸入與機器可驗的驗收指令。Task 4 Step 2 的文件骨架中「（…）」是由審查結論填寫的內容區，驗收腳本檢查標頭存在。
 
-**型別/名稱一致性**：`WS_NAME`、`COLUMNS`、`WORKFLOWS`、`SEED_TASKS`、`call`、`main` 在 bootstrap 與測試間一致；`ENV_OUT`、`TOKEN_FILE`、`TEMPLATE`、`PORTS`、`SKIP_DOCKER` 在腳本與測試間一致；種子 task 標題 `P1-01…P1-08` 與 MEMORY.md、Task 對應一致。
+**型別/名稱一致性**：`WS_NAME`、`COLUMNS`、`WORKFLOWS`、`SEED_TASKS`、`call`、`main` 在 bootstrap 與測試間一致；`ENV_OUT`、`TOKEN_FILE`、`TEMPLATE` 在腳本與測試間一致；種子 task 標題 `P1-01…P1-08` 與 MEMORY.md、Task 對應一致。
 
 **已知不確定（誠實標示）**：Kandev `POST /tasks` 的 `executor_id` 與 `repositories` 實際接受度、`stage_type: "custom"` 是否為合法值（觀察到現有 workflow 使用 `custom`）、Kandev 是否自動附帶 `Kanban` workflow，皆在 Task 1 Step 4 以實機回應驗證，錯誤訊息會直接指出欄位問題。

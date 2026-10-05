@@ -55,14 +55,14 @@ SEED_TASKS = [
      "desc": f"計畫 Task 3（{PLAN}）。技能：gsd-map-codebase。交接檔：CLAUDE.md。完成條件：.planning/codebase/ 至少 4 份文件並 commit。"},
     {"title": "P1-03 Phase 1 部署決策（gstack）", "exec": EXEC_LOCAL,
      "desc": f"計畫 Task 4（{PLAN}）。技能：/plan-eng-review。交接檔：.planning/codebase/ 與該計畫。完成條件：docs/decisions/0001-phase1-deploy-approach.md 含五個標頭並 commit。"},
-    {"title": "P1-04 make-env.sh 與 preflight.sh（worktree）", "exec": EXEC_WORKTREE,
-     "desc": f"計畫 Task 5、6 Step 1（{PLAN}）。技能：superpowers:test-driven-development。完成條件：test-make-env.sh 輸出 PASS，/review 通過，本機 merge 回 develop。"},
+    {"title": "P1-04 make-env.sh（worktree）", "exec": EXEC_WORKTREE,
+     "desc": f"計畫 Task 5（{PLAN}）。技能：superpowers:test-driven-development。完成條件：test-make-env.sh 輸出 PASS，審查通過，經使用者核准後本機 merge 回 develop。"},
     {"title": "P1-05 起基礎設施（DB/Redis/Qdrant）", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 6（{PLAN}）。完成條件：五個容器運行，兩個 PostGIS 可連線。"},
+     "desc": f"計畫 Task 6（{PLAN}）。完成條件：四個容器運行（redis、postgres-data、postgres-manager、qdrant），兩個 PostGIS 可連線。"},
     {"title": "P1-06 初始化資料庫與前端相依", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 7（{PLAN}）。完成條件：兩個 DB 有資料表，三個 init 容器 exit 0，並記錄重跑行為。"},
-    {"title": "P1-07 起應用（FE/BE/nginx）", "exec": EXEC_LOCAL,
-     "desc": f"計畫 Task 8（{PLAN}）。完成條件：FE:8080、BE:8088 回應，git status 乾淨。BE 啟動需要本地嵌入模型（model_export 為必經）。"},
+     "desc": f"計畫 Task 7（{PLAN}）。完成條件：三個 init 容器 exit 0 且資料列數 > 0（exit 0 不是成功證明；init 不重跑）。"},
+    {"title": "P1-07 起應用（FE/BE）", "exec": EXEC_LOCAL,
+     "desc": f"計畫 Task 8（{PLAN}）。完成條件：FE:8080 回 200，BE /api/v1/dashboard/（帶結尾斜線）回 200，git status 乾淨。BE 啟動需要本地嵌入模型（model_export 為必經）；首次 build 預留 1 小時以上。"},
     {"title": "P1-08 驗收與收尾", "exec": EXEC_LOCAL,
      "desc": f"計畫 Task 9、10（{PLAN}）。技能：/qa-only、verification-before-completion、gsd-extract-learnings。完成條件：docs/agent-workflow/evidence/phase1-verification.md 逐項有證據，MEMORY.md 已更新。"},
 ]
@@ -127,15 +127,19 @@ def ensure_steps(wf_id):
 
 
 def ensure_tasks(ws_id, wf_id, backlog_id, repo_id):
-    have = {t["title"] for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
+    """Upsert the seed tasks by their P1-xx key: create missing ones, update stale title/description."""
+    have = {t["title"].split(" ")[0]: t for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
     for t in SEED_TASKS:
-        if t["title"] in have:
-            continue
-        call("POST", "/tasks", {
-            "workspace_id": ws_id, "workflow_id": wf_id, "workflow_step_id": backlog_id,
-            "title": t["title"], "description": t["desc"], "executor_id": t["exec"],
-            "repositories": [{"repository_id": repo_id, "base_branch": "develop"}],
-        })
+        key = t["title"].split(" ")[0]
+        cur = have.get(key)
+        if cur is None:
+            call("POST", "/tasks", {
+                "workspace_id": ws_id, "workflow_id": wf_id, "workflow_step_id": backlog_id,
+                "title": t["title"], "description": t["desc"], "executor_id": t["exec"],
+                "repositories": [{"repository_id": repo_id, "base_branch": "develop"}],
+            })
+        elif cur["title"] != t["title"] or cur.get("description") != t["desc"]:
+            call("PATCH", f"/tasks/{cur['id']}", {"title": t["title"], "description": t["desc"]})
 
 
 def main():

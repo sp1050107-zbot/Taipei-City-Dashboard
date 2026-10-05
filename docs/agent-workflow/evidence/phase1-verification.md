@@ -17,21 +17,33 @@ dashboards by group: {'public': 0, 'taipei': 2, 'metrotaipei': 3, 'personal': 0}
 ```
 ## 3. 資料庫
 ```
-dashboard DB tables: 17
-dashboard DB 前幾大表（live rows）:
-  spatial_ref_sys 8500
-  pagc_rules 4354
-  bus_info_tpe 3888
-  pagc_lex 2938
+dashboard DB — schema public: 17 個表/檢視，其中 14 張是示範資料表（下列，皆有資料列），
+另有 3 個 PostGIS 物件（spatial_ref_sys、geometry_columns、geography_columns）。
+其他 schema 另有 36 張表來自 PostGIS tiger geocoder 擴充（addr、county、pagc_* 等），不是示範資料。
+示範資料表與 live rows（pg_stat_user_tables，schema public）:
+  bike_network_new_tpe 211
+  bike_network_tpe 488
   bus_info_new_tpe 2836
+  bus_info_tpe 3888
   city_age_distribution_newtaipei 2160
-manager DB tables: 20
+  city_age_distribution_taipei 273
+  dependency_ratio_and_aging_index_new_tpe 12
+  dependency_ratio_and_aging_index_tpe 55
+  employment_age_structure_new_tpe 360
+  employment_age_structure_tpe 1620
+  population_age_distribution_new_tpe 12
+  population_age_distribution_tpe 25
+  tran_ubike_realtime 1528
+  tran_ubike_realtime_new_tpe 1394
+manager DB — schema public: 20 個表
   auth_users = 1
   dashboards = 8
   components = 8
   groups = 4
   roles = 3
 ```
+註：先前 ledger 的 Task 7 驗收訊息寫「22 demo tables with rows」，該數字把擴充 schema 的表也算進去了，正確的示範資料表數是 14。
+
 ## 4. 管理員
 ```
 auth_users 中的管理員數量: 1
@@ -86,6 +98,8 @@ redis:7.2.3-alpine	sha256:090276da2603db19b154602c374f505d94c10ea57e9749fc3e68e9
 | `/mapview` | **PASS（含預期缺口）** | Mapbox 深色底圖渲染（可見台北各行政區名稱與 `© Mapbox © OpenStreetMap`），代表使用者的 token 有效；canvas 1。console：`User denied Geolocation`（headless 無定位權限，預期）、WebGL 效能警告（無害）、`sources.taipei_building_3d_source: Either "url" or "tiles" is required.`（3D 建物圖層缺 `VITE_MAPBOXTILE`，**預期缺口**）。無 4xx。 |
 | `/admin`（未登入） | **PASS** | 被導回 `/dashboard`，路由守衛有作用。 |
 | 管理員登入 | **未驗證** | 見第 4 節（祕密讀取防護）。 |
+
+**「PASS」的定義與限制**：頁面載入、圖表/底圖有渲染、console 無錯誤（預期缺口除外）、無 4xx，且在固定等待時間後取樣。**沒有**測試互動（登入視窗、開啟儀表板、圖層開關）、行動版視窗、登入後的 `/admin`。`charts: 311` 是 `[class*="chart"]` 選擇器命中的元素數，不是圖表數。
 
 ### 額外發現（非缺陷，但值得在 B 階段處理）
 - **GA 追蹤外送（P3，confidence 9/10）**：`Taipei-City-Dashboard-FE/index.html:31,39` 載入 Google Tag Manager 並用上游的衡量 ID `G-0KD9XLZ7W3` 呼叫 `gtag("config", ...)`。本機瀏覽時每個頁面都會對 `analytics.google.com/g/collect` 發出請求（本次在 headless 下被 `net::ERR_ABORTED`）。這會把你本機的瀏覽資料送到臺北市的 GA 屬性，也污染對方的統計。建議列為第一批客製：本機環境移除或以環境變數關閉。

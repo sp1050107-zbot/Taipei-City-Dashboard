@@ -28,9 +28,9 @@
 - 前端 `index.html:31,39` 會把瀏覽資料送到上游的 GA（`G-0KD9XLZ7W3`），B 階段第一批客製候選。
 - 新 Kandev workspace 任務前綴也是 `KAN`，標題 `P1-xx` 辨識。
 - `task-done` 要在整合 checkout 執行，不要在 worktree 內跑（ledger 會寫到 worktree 自己的目錄）。
-- 防護 hook 禁止代理讀 `docker/.env`、`mapbox-key.txt` 以外的祕密檔；需要密碼請使用者自己查：`grep DASHBOARD_DEFAULT docker/.env`。
+- 防護 hook 禁止代理讀 `docker/.env`（任何 `.env`）；`mapbox-key.txt` 可在 shell 內拿來比對（例如檢查 diff 有沒有洩漏）但永不印出。需要管理員密碼請使用者自己查：`grep DASHBOARD_DEFAULT docker/.env`。
 
 ## 目前狀態
-- **Phase 1 已完成並驗收（Task 1–10）**：FE 8080、BE 8088、兩個 DB（示範資料已載入）、Redis、Qdrant 皆運行；瀏覽器 QA 三頁 PASS（含預期的 3D 建物/行政區缺口）。
+- **Phase 1 已部署，驗收 3/4 項通過；管理員登入尚待使用者驗證**（Task 1–10 皆完成）：FE 8080、BE 8088、兩個 DB（示範資料已載入）、Redis、Qdrant 皆運行；瀏覽器 QA 三頁 PASS（含預期的 3D 建物/行政區缺口）。
 - **待使用者處理**：(1) 核准把 `feature/make-env` 合併進 `develop`（尚未合併，腳本目前只在 worktree `~/Taipei-City-Dashboard-worktrees/make-env`）；(2) 自行驗證管理員登入；(3) 確認決策記錄的 12 條 ruling；(4) 是否設定本機 git `user.name`/`user.email`。
 - **下一步**：寫 Phase 2（混合式開發）計畫；候選客製：移除 GA 追蹤、MapLibre 替換（選配）。

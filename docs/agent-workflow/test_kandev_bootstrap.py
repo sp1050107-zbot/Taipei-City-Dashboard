@@ -28,9 +28,12 @@ def test_state():
     repo = next(r for r in repos if r["local_path"] == os.path.expanduser("~/Taipei-City-Dashboard"))
     assert repo["default_branch"] == "develop"
     assert repo["pull_before_worktree"] is False, "must not pull: develop has unpushed local commits"
-    titles = {t["title"] for t in tasks}
+    by_key = {t["title"].split(" ")[0]: t for t in tasks}
     for t in SEED_TASKS:
-        assert t["title"] in titles, f"seed task missing: {t['title']}"
+        key = t["title"].split(" ")[0]
+        assert key in by_key, f"seed task missing: {key}"
+        assert by_key[key]["title"] == t["title"], f"{key}: title is stale: {by_key[key]['title']!r}"
+        assert by_key[key]["description"] == t["desc"], f"{key}: description is stale"
     return len(wfs), len(repos), len(tasks)
 
 
