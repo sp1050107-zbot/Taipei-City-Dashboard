@@ -25,6 +25,7 @@
 - 檔名使用 `AGENTS.md`（不是 `AGENT.md`）；`.planning/` 納入 git。
 - 交接檔固定五個標頭：`目標 / 已決定 / 未決定 / 下一步 / 關鍵檔案路徑`。
 - worktree 只看得到已 commit 的內容：派 task 前，交接檔必須已 commit 到 `develop`。
+- 上游 `.gitignore` 第 29 行有 `*.sh`：本計畫新增的 shell 腳本一律用 `git add -f` 指定檔名加入（不修改上游 `.gitignore`）。
 - 本機 git 尚未設定 `user.name` / `user.email`（commit 作者目前自動推測為 `opsai <opsai@007MacBook-Pro-4.local>`）；此項由使用者決定是否設定，本計畫不代為修改全域設定。
 
 ## Review Focus
@@ -465,7 +466,8 @@ Expected: `PASS`
 
 ```bash
 cd ~/Taipei-City-Dashboard
-git add CLAUDE.md AGENTS.md MEMORY.md docs/agent-workflow/check-docs.sh
+git add CLAUDE.md AGENTS.md MEMORY.md
+git add -f docs/agent-workflow/check-docs.sh   # upstream .gitignore has '*.sh'
 git diff --cached | grep -qF "$(tr -d '[:space:]' < ~/Taipei-City-Dashboard/mapbox-key.txt)" && { echo "SECRET IN DIFF"; exit 1; } || true
 git commit -m "docs: add CLAUDE.md, AGENTS.md and MEMORY.md for agent context
 
@@ -711,7 +713,7 @@ Expected: `PASS`
 
 ```bash
 cd ~/Taipei-City-Dashboard-worktrees/make-env
-git add docs/agent-workflow/make-env.sh docs/agent-workflow/test-make-env.sh
+git add -f docs/agent-workflow/make-env.sh docs/agent-workflow/test-make-env.sh   # upstream .gitignore has '*.sh'
 git diff --cached | grep -qF "$(tr -d '[:space:]' < ~/Taipei-City-Dashboard/mapbox-key.txt)" && { echo "SECRET IN DIFF"; exit 1; } || true
 git commit -m "feat: add local docker env generator with tests
 
@@ -794,7 +796,7 @@ echo "PREFLIGHT OK"
 cd ~/Taipei-City-Dashboard-worktrees/make-env
 chmod +x docs/agent-workflow/preflight.sh docs/agent-workflow/test-preflight.sh
 bash docs/agent-workflow/test-preflight.sh
-git add docs/agent-workflow/preflight.sh docs/agent-workflow/test-preflight.sh
+git add -f docs/agent-workflow/preflight.sh docs/agent-workflow/test-preflight.sh
 git commit -m "feat: add port and docker preflight check
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
