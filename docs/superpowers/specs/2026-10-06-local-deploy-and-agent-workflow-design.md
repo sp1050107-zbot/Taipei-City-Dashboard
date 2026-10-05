@@ -109,7 +109,7 @@
 8. **TCD-8 補文件與記憶**：寫 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`，commit 到 `develop`；`gsd-extract-learnings`。
 
 **已知風險與備案**
-- BE 的 `dashboard-be-dev` image 含 onnxruntime 與語言模型，build 可能很大/很慢；備案：先用 `golang` 基底 image（compose 內已有註解的備選）。
+- BE 的 `dashboard-be-dev` image 含 onnxruntime 與語言模型，build 可能很大/很慢。**更正（2026-10-06 讀碼）**：BE 啟動時無條件載入該模型（`app/app.go:47`，失敗即 `log.Fatalf`），所以**沒有**「純 golang image」備案；失敗時重試或提供 HF token，見 `docs/decisions/0001-phase1-deploy-approach.md`。
 - BE 啟動可能依賴 Qdrant/AI 設定；備案：Qdrant 保持啟動，AI 相關 env 留佔位值。
 - 地圖需要 Mapbox token；使用者已提供（見 §9.1）。3D 建物與行政區圖層因取不到資料屬已知差異。
 - `docker-compose.yaml` 使用 `external: true` 網路，網路必須先建。

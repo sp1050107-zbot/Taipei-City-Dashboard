@@ -25,16 +25,19 @@
 - 檔名使用 `AGENTS.md`（不是 `AGENT.md`）；`.planning/` 納入 git。
 - 交接檔固定五個標頭：`目標 / 已決定 / 未決定 / 下一步 / 關鍵檔案路徑`。
 - worktree 只看得到已 commit 的內容：派 task 前，交接檔必須已 commit 到 `develop`。
+- compose 只在整合 checkout（`~/Taipei-City-Dashboard/docker`）執行：compose 檔使用固定 `container_name`，同一台機器只能有一組堆疊；Kandev worktree task 不得執行 compose。
+- Phase 1 只啟動：`redis postgres-data postgres-manager qdrant`（基礎設施）與 `dashboard-fe dashboard-be`（應用）。不啟動 nginx、pgAdmin、`vector-db-upgrade`（決策記錄 `docs/decisions/0001-phase1-deploy-approach.md` ruling 3–5）。
+- BE 的 ONNX 嵌入模型為必經（`app/app.go:47`），沒有「純 golang image」備案。
 - 上游 `.gitignore` 第 29 行有 `*.sh`：本計畫新增的 shell 腳本一律用 `git add -f` 指定檔名加入（不修改上游 `.gitignore`）。
 - 本機 git 尚未設定 `user.name` / `user.email`（commit 作者目前自動推測為 `opsai <opsai@007MacBook-Pro-4.local>`）；此項由使用者決定是否設定，本計畫不代為修改全域設定。
 
 ## Review Focus
 
-1. **埠號已被占用**（80/443/8080/8088/5432/6333/6334/8889）：預檢必須明確失敗並列出占用者，不得強行啟動或殺掉別人的行程。→ Task 6 Step 1。
+1. **埠號已被占用**（80/443/8080/8088/5432/6333/6334/8889）：預檢必須明確失敗並列出占用者，不得強行啟動或殺掉別人的行程。→ Task 6 Step 4（`lsof` 迴圈）。
 2. **token 檔格式異常**（有結尾換行/空白、檔案不存在、內容為空）：產生器必須去除空白、缺檔時警告但不中斷、且不得把 token 印出。→ Task 5 測試 1、4。
 3. **祕密外洩到 git**（`docker/.env`、`mapbox-key.txt`、密碼被 `git add`）：每次 commit 前必須檢查 staged diff 沒有 token 與密碼樣式。→ Task 5 Step 7、Task 9。
-4. **重跑初始化**（`migrateDB` / `initDashboard` 對已有資料的 DB 再跑一次）會怎樣：必須實測並記錄，不得假設冪等。→ Task 7 Step 5。
-5. **docker 在 repo 內建立 root 擁有的空目錄**（`docker/nginx/ssl` 被 volume 掛載而自動建立）造成 `git status` 噪音或權限問題：必須檢查並處理。→ Task 8 Step 4。
+4. **init 靜默失敗與重跑**：`initial.go` 吞掉錯誤、`psql -f` 沒有 `ON_ERROR_STOP`，所以 `Exited (0)` 不代表資料載入成功；重跑會重複寫入或靜默出錯。驗收只看資料列數，且**不重跑**，重置用刪 volume。→ Task 7 Step 2–5。
+5. **就緒探測誤判**：`/api/v1/dashboard`（無結尾斜線）會得到 301；必須探測 `/api/v1/dashboard/`，並對照 `docker logs`。→ Task 8 Step 3。
 
 ---
 
@@ -52,7 +55,6 @@
 | `docs/decisions/0001-phase1-deploy-approach.md` | Create（gstack 產出） | Phase 1 決策記錄 |
 | `docs/agent-workflow/make-env.sh` | Create（worktree） | 由 `.env.template` 產生本機專用 `docker/.env` |
 | `docs/agent-workflow/test-make-env.sh` | Create（worktree） | `make-env.sh` 的測試 |
-| `docs/agent-workflow/preflight.sh` | Create（worktree） | 埠號與 docker 預檢 |
 | `docs/agent-workflow/evidence/phase1-verification.md` | Create | Phase 1 驗收證據（不含祕密） |
 
 ---
@@ -578,7 +580,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Test: `docs/agent-workflow/test-make-env.sh`
 
 **Interfaces:**
-- Produces: `make-env.sh`：環境變數 `ENV_OUT`（預設 `<主 checkout>/docker/.env`）、`TOKEN_FILE`（預設 `<主 checkout>/mapbox-key.txt`）、`TEMPLATE`（預設本腳本所在 repo 的 `docker/.env.template`）。行為：不覆寫既有檔（exit 非 0）；寫入檔案權限 600；以 `secrets.token_hex` 產生 `JWT_SECRET`、`IDNO_SALT`、`DB_DASHBOARD_PASSWORD`、`DB_MANAGER_PASSWORD`、`DASHBOARD_DEFAULT_PASSWORD`、`PGADMIN_DEFAULT_PASSWORD`、`QDRANT_API_KEY`；token 檔缺少或為空時 stderr 警告含 `mapbox` 字樣但不失敗；stdout/stderr 永不出現任何祕密值。
+- Produces: `make-env.sh`：環境變數 `ENV_OUT`（預設 `<主 checkout>/docker/.env`）、`TOKEN_FILE`（預設 `<主 checkout>/mapbox-key.txt`）、`TEMPLATE`（預設本腳本所在 repo 的 `docker/.env.template`）。行為：不覆寫既有檔（exit 非 0）；寫入檔案權限 600；以 `secrets.token_hex` 產生 `JWT_SECRET`、`IDNO_SALT`、`DB_DASHBOARD_PASSWORD`、`DB_MANAGER_PASSWORD`、`DASHBOARD_DEFAULT_PASSWORD`、`PGADMIN_DEFAULT_PASSWORD`、`QDRANT_API_KEY`；token 檔缺少或為空時 stderr 警告含 `mapbox` 字樣但不失敗；模板缺少任何預期鍵時 exit 非 0、stderr 列出缺的鍵、且不建立檔案；stdout/stderr 永不出現任何祕密值。
 
 - [ ] **Step 1: 建 worktree**
 
@@ -634,6 +636,15 @@ grep -qi 'mapbox' "$TMP/err3" || fail "no mapbox warning for empty file"
 # 6. secrets differ between runs
 a="$(grep '^JWT_SECRET=' "$TMP/.env")"; b="$(grep '^JWT_SECRET=' "$TMP/.env2")"
 [ "$a" != "$b" ] || fail "secrets not random"
+
+# 7. fails loudly (and creates nothing) when the template lacks expected keys
+printf 'FOO=bar\n' > "$TMP/bad.template"
+if TEMPLATE="$TMP/bad.template" ENV_OUT="$TMP/.env4" TOKEN_FILE="$TMP/token.txt" "$HERE/make-env.sh" >/dev/null 2>"$TMP/err4"; then fail "must fail when template lacks expected keys"; fi
+grep -q 'JWT_SECRET' "$TMP/err4" || fail "error must name the missing key"
+[ ! -e "$TMP/.env4" ] || fail "must not create env file when keys are missing"
+
+# 8. the real upstream template contains every expected key
+ENV_OUT="$TMP/.env5" TOKEN_FILE="$TMP/token.txt" "$HERE/make-env.sh" >/dev/null 2>&1 || fail "real docker/.env.template lacks an expected key"
 echo PASS
 ```
 
@@ -692,6 +703,10 @@ for line in open(tpl).read().splitlines():
         touched.append(m.group(1))
     lines.append(line)
 
+missing = sorted(set(values) - set(touched))
+if missing:
+    sys.exit("template is missing expected keys: " + ", ".join(missing))
+
 os.makedirs(os.path.dirname(out), exist_ok=True)
 fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, "w") as f:
@@ -728,89 +743,19 @@ git checkout develop
 git merge --no-ff feature/make-env -m "merge: make-env generator"
 bash docs/agent-workflow/test-make-env.sh
 ```
-Expected: 合併後在 `develop` 上測試仍 `PASS`。保留 worktree 與分支到 Task 6 完成（Task 6 的 `preflight.sh` 將沿用同一分支），Task 10 才清理。
+Expected: 合併後在 `develop` 上測試仍 `PASS`。接著清理：`git worktree remove ~/Taipei-City-Dashboard-worktrees/make-env && git branch -d feature/make-env`（`-d` 成功代表已完整合併）。
 
 ---
 
-### Task 6: 預檢、起基礎設施（DB / Redis / Qdrant）
+### Task 6: 預檢與起基礎設施（DB / Redis / Qdrant）
 
-**Files:**
-- Create（worktree `feature/make-env`，與 Task 5 同一分支的後續 commit）: `docs/agent-workflow/preflight.sh`、`docs/agent-workflow/test-preflight.sh`
+**Files:** 無新增被追蹤檔案（只產生被忽略的 `docker/.env`、建立 docker 網路與容器）。
 
 **Interfaces:**
-- Produces: `preflight.sh`：檢查 `docker info` 可用，並檢查埠 `80 443 8080 8088 5432 6333 6334 8889` 是否有 LISTEN；有占用則列出 `埠 → 行程` 並 exit 1，全空閒則印 `PREFLIGHT OK` exit 0。環境變數 `PORTS` 可覆寫要檢查的埠（供測試）。
+- Consumes: `make-env.sh`（Task 5，已合併到 `develop`）。
+- Produces: `docker/.env`（權限 600、被 `.gitignore` 忽略）；docker 網路 `br_dashboard`；運行中的 `redis`、`postgres-data`、`postgres-manager`、`qdrant`。
 
-- [ ] **Step 1: 寫失敗的測試（worktree）**
-
-建立 `docs/agent-workflow/test-preflight.sh`：
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"
-fail(){ echo "FAIL: $*" >&2; exit 1; }
-
-# free port -> OK
-PORTS="59871" SKIP_DOCKER=1 "$HERE/preflight.sh" | grep -q 'PREFLIGHT OK' || fail "free port should pass"
-
-# occupied port -> fail and names the port
-python3 -c "import socket,time;s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);s.bind(('127.0.0.1',59872));s.listen(1);time.sleep(8)" &
-PID=$!; sleep 1
-if OUT="$(PORTS="59872" SKIP_DOCKER=1 "$HERE/preflight.sh" 2>&1)"; then kill $PID 2>/dev/null; fail "occupied port should fail"; fi
-kill $PID 2>/dev/null || true
-printf '%s' "$OUT" | grep -q '59872' || fail "message must name the port"
-echo PASS
-```
-
-- [ ] **Step 2: 執行確認失敗**
-
-Run: `cd ~/Taipei-City-Dashboard-worktrees/make-env && git merge -q develop && bash docs/agent-workflow/test-preflight.sh`
-Expected: FAIL（`preflight.sh: No such file or directory`）
-
-- [ ] **Step 3: 寫最小實作**
-
-建立 `docs/agent-workflow/preflight.sh`：
-
-```bash
-#!/usr/bin/env bash
-# Pre-flight for the local docker stack. Never kills anything; only reports.
-set -uo pipefail
-PORTS="${PORTS:-80 443 8080 8088 5432 6333 6334 8889}"
-
-if [ "${SKIP_DOCKER:-0}" != "1" ]; then
-  docker info >/dev/null 2>&1 || { echo "docker daemon not reachable" >&2; exit 1; }
-fi
-
-busy=0
-for p in $PORTS; do
-  who="$(lsof -nP -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | awk 'NR==2{print $1" (pid "$2")"}')"
-  if [ -n "$who" ]; then echo "port $p busy -> $who" >&2; busy=1; fi
-done
-[ "$busy" = "0" ] || exit 1
-echo "PREFLIGHT OK"
-```
-
-- [ ] **Step 4: 通過測試並 commit（worktree）**
-
-```bash
-cd ~/Taipei-City-Dashboard-worktrees/make-env
-chmod +x docs/agent-workflow/preflight.sh docs/agent-workflow/test-preflight.sh
-bash docs/agent-workflow/test-preflight.sh
-git add -f docs/agent-workflow/preflight.sh docs/agent-workflow/test-preflight.sh
-git commit -m "feat: add port and docker preflight check
-
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
-```
-Expected: `PASS`，commit 成功。
-
-- [ ] **Step 5: 使用者核准後合併回 develop**
-
-```bash
-cd ~/Taipei-City-Dashboard && git checkout develop && git merge --no-ff feature/make-env -m "merge: preflight check" && bash docs/agent-workflow/test-preflight.sh
-```
-Expected: `PASS`
-
-- [ ] **Step 6: 在整合 checkout 產生 `docker/.env`**
+- [ ] **Step 1: 在整合 checkout 產生 `docker/.env`**
 
 ```bash
 cd ~/Taipei-City-Dashboard
@@ -820,12 +765,14 @@ git status -s
 ```
 Expected: 第一個指令印 `wrote .../docker/.env (mode 600); set: ...`（沒有任何祕密值）；`stat` 印 `600`；`git status` 不顯示 `docker/.env`。
 
-- [ ] **Step 7: 預檢**
+- [ ] **Step 2: 確認 Docker 可用與資源**
 
-Run: `cd ~/Taipei-City-Dashboard && bash docs/agent-workflow/preflight.sh`
-Expected: `PREFLIGHT OK`。若有任何 `port N busy -> ...`，**停止**，回報占用者給使用者決定，不得自行關閉行程。
+```bash
+docker info --format 'MemTotal={{.MemTotal}} NCPU={{.NCPU}}'
+```
+Expected: 可正常輸出（記憶體約 8.3 GB 屬已知限制，見決策記錄；不足時由使用者在 Docker Desktop 調高，這步只記錄）。
 
-- [ ] **Step 8: 建 docker 網路（先確認不衝突）**
+- [ ] **Step 3: 建 docker 網路（先確認不衝突）**
 
 ```bash
 docker network ls --format '{{.Name}}' | grep -x br_dashboard && echo "network exists" || {
@@ -835,16 +782,26 @@ docker network ls --format '{{.Name}}' | grep -x br_dashboard && echo "network e
 ```
 Expected: 印出新網路 ID，或 `network exists`。若印 `SUBNET CONFLICT`，改用 `192.168.129.0/24` / `192.168.129.1` 重建，並在 `MEMORY.md` 記錄（網路名稱 `br_dashboard` 不可變，compose 以 `external: true` 引用）。
 
-- [ ] **Step 9: 啟動基礎設施**
+- [ ] **Step 4: 埠號預檢（只回報，不殺任何行程）**
+
+```bash
+busy=0; for p in 8080 8088 5432 6333 6334; do
+  who="$(lsof -nP -iTCP:$p -sTCP:LISTEN 2>/dev/null | awk 'NR==2{print $1" (pid "$2")"}')"
+  [ -n "$who" ] && { echo "port $p busy -> $who"; busy=1; }
+done; [ "$busy" = 0 ] && echo "PORTS OK"
+```
+Expected: `PORTS OK`。若有任何 `port N busy -> ...`，**停止**並把占用者回報給使用者決定，不得自行關閉行程。
+
+- [ ] **Step 5: 啟動基礎設施（只起需要的四個服務）**
 
 ```bash
 cd ~/Taipei-City-Dashboard/docker
-docker compose -f docker-compose-db.yaml up -d
+docker compose -f docker-compose-db.yaml up -d redis postgres-data postgres-manager qdrant
 docker compose -f docker-compose-db.yaml ps
 ```
-Expected: `redis`、`postgres-data`、`postgres-manager`、`pgadmin`、`qdrant` 皆為 `running`。
+Expected: 四個服務皆為 `running`。（不啟動 pgAdmin，見決策記錄 ruling 4。）
 
-- [ ] **Step 10: 驗證 DB 可連線**
+- [ ] **Step 6: 驗證 DB 與 Redis 可連線**
 
 ```bash
 for c in postgres-data postgres-manager; do
@@ -873,76 +830,84 @@ docker compose -f docker-compose-init.yaml up 2>&1 | tail -40
 ```
 Expected: 三個容器 `dashboard-fe-init`、`dashboard-be-init-manager`、`dashboard-be-init-dashboard` 皆結束。第一次會下載 Go 模組與 npm 套件，需數分鐘。
 
-- [ ] **Step 2: 確認三個 init 容器 exit 0**
+- [ ] **Step 2: 確認三個 init 容器已結束（exit 0 只是必要條件，不是成功證明）**
 
 Run: `docker ps -a --filter name=dashboard-fe-init --filter name=dashboard-be-init --format '{{.Names}} {{.Status}}'`
-Expected: 三行皆含 `Exited (0)`。若有非 0，用 `docker logs <name> | tail -50` 取得原因，依原因修正（不得略過）；若需改 compose/設定檔，走 worktree。
+Expected: 三行皆含 `Exited (0)`。非 0 時用 `docker logs <name> | tail -50` 找原因並修正。**注意**：`app/initial/initial.go` 會吞掉錯誤、`psql -f` 沒有 `ON_ERROR_STOP`，所以即使資料沒載入也會 `Exited (0)`；真正的驗收是下面的資料列數。
 
-- [ ] **Step 3: 確認資料表存在**
+- [ ] **Step 3: 驗收資料表與資料列數（以此為準）**
 
 ```bash
 set -a; . ./.env; set +a
 docker exec postgres-data psql -U "$DB_DASHBOARD_USER" -d "$DB_DASHBOARD_DBNAME" -tAc "select count(*) from information_schema.tables where table_schema='public'"
+docker exec postgres-data psql -U "$DB_DASHBOARD_USER" -d "$DB_DASHBOARD_DBNAME" -tAc "select relname, n_live_tup from pg_stat_user_tables order by n_live_tup desc limit 5"
 docker exec postgres-manager psql -U "$DB_MANAGER_USER" -d "$DB_MANAGER_DBNAME" -tAc "select count(*) from information_schema.tables where table_schema='public'"
 ```
-Expected: 兩個數字都 > 0。（指令在 `docker/` 目錄執行；`.env` 由 shell 載入，不印出內容。）
+Expected: 兩個資料表數量都 > 0，且 dashboard 資料庫最大的幾張表 `n_live_tup` > 0（示範資料約 1.6 萬行 SQL，`db-sample-data/dashboard-demo.sql`）。若表存在但列數為 0，表示載入靜默失敗：不要重跑，改走 Step 5 的重置。
 
-- [ ] **Step 4: 確認有示範資料與預設管理員**
-
-```bash
-docker exec postgres-manager psql -U "$DB_MANAGER_USER" -d "$DB_MANAGER_DBNAME" -tAc "select count(*) from users"
-```
-Expected: ≥ 1。（若資料表名稱不是 `users`，用 `\dt` 列出後依實際名稱重查，並把實際名稱記入證據檔。）
-
-- [ ] **Step 5: 實測重跑行為（Review Focus 4）**
+- [ ] **Step 4: 確認有預設管理員**
 
 ```bash
-docker compose -f docker-compose-init.yaml up dashboard-be-init-manager dashboard-be-init-dashboard 2>&1 | tail -20
-docker exec postgres-data psql -U "$DB_DASHBOARD_USER" -d "$DB_DASHBOARD_DBNAME" -tAc "select count(*) from information_schema.tables where table_schema='public'"
+docker exec postgres-manager psql -U "$DB_MANAGER_USER" -d "$DB_MANAGER_DBNAME" -tAc "select count(*) from auth_users"
 ```
-Expected: 記錄「第二次執行是成功、報錯，或重複匯入資料」到 `docs/agent-workflow/evidence/phase1-verification.md` 的「重跑行為」一節（Task 9 建立該檔時併入）。此步驟只觀察，不修復。
+Expected: ≥ 1。（表名不是 `auth_users` 時，用 `\dt` 列出後依實際名稱重查，並把實際名稱記入證據檔。）
 
----
+- [ ] **Step 5: 不重跑；記錄重置方法**
 
-### Task 8: 起應用（FE / BE / nginx）
-
-**Files:** 無被追蹤的變更預期；若 `git status` 出現新項目，見 Step 4。
-
-**Interfaces:**
-- Consumes: `docker/.env`、已初始化的 DB。
-- Produces: 運行中的 `dashboard-fe`（主機 8080）、`dashboard-be`（主機 8088）、`nginx`（80/443）、`vector-db-upgrade`。
-
-- [ ] **Step 1: 建置並啟動**
+初始化是一次性動作：`migrateDB` 用 GORM `AutoMigrate`（可重跑），但 `initDashboard` 以 `psql -f` 灌入示範資料，重跑可能重複寫入或靜默出錯（見決策記錄 A9）。**不要為了觀察而重跑。** 需要重做時（僅限本機示範資料）：
 
 ```bash
 cd ~/Taipei-City-Dashboard/docker
-docker compose -f docker-compose.yaml up -d --build 2>&1 | tail -30
+docker compose -f docker-compose-db.yaml down
+docker volume rm postgres_data postgres_manager_data
+docker compose -f docker-compose-db.yaml up -d redis postgres-data postgres-manager qdrant
 ```
-Expected: 首次 build 會執行 `model_export`（pip 安裝 + 下載 Hugging Face 模型）與下載 onnxruntime，可能耗時 10–30 分鐘。若 `model_export` 因網路或 HF 速率失敗，**停止並回報**，備案依 `docs/decisions/0001-*.md` 的決定處理；不得自行刪除 Dockerfile 階段。
+把這段指令與結論寫進 `docs/agent-workflow/evidence/phase1-verification.md` 的「重跑行為」一節（Task 9 建立）。刪 volume 屬破壞性操作，只在 Step 3 失敗且使用者確認後才執行。
 
-- [ ] **Step 2: 確認容器狀態**
+---
 
-Run: `docker ps --format '{{.Names}} {{.Status}}' | sort`
-Expected: `dashboard-be`、`dashboard-fe`、`nginx` 為 `Up`；`vector-db-upgrade` 可能已 `Exited`（一次性工作，記錄其 exit code 與 log 末 20 行）。
+### Task 8: 起應用（FE / BE）
 
-- [ ] **Step 3: 等待 BE 就緒**
+**Files:** 無被追蹤的變更預期。
+
+**Interfaces:**
+- Consumes: `docker/.env`、已初始化的 DB。
+- Produces: 運行中的 `dashboard-fe`（主機 8080）與 `dashboard-be`（主機 8088）。不啟動 nginx、`vector-db-upgrade`、pgAdmin（決策記錄 ruling 3、4）。
+
+- [ ] **Step 1: 先單獨建置 BE image（失敗不留下半啟動的堆疊）**
+
+```bash
+cd ~/Taipei-City-Dashboard/docker
+time docker compose -f docker-compose.yaml build dashboard-be 2>&1 | tail -30
+```
+Expected: 建置成功。首次會跑 `model_export`（pip 安裝 + 下載 Hugging Face 的 `intfloat/multilingual-e5-base` 並轉 ONNX）與下載 onnxruntime，**預估 10–30 分鐘（未驗證）**，把實際耗時記入證據檔。失敗時：先原樣重試（已完成的層有快取）；若是 Hugging Face 速率限制，請使用者提供自己的 HF token，以 `docker compose -f docker-compose.yaml build --build-arg HF_TOKEN=... dashboard-be` 重試（token 不得進對話輸出或 commit）。**沒有**「純 golang image」備案：BE 缺模型會 `log.Fatalf`（`app/app.go:47`）。
+
+- [ ] **Step 2: 啟動 FE 與 BE**
+
+```bash
+docker compose -f docker-compose.yaml up -d dashboard-fe dashboard-be
+docker ps --format '{{.Names}} {{.Status}}' | sort
+docker stats --no-stream --format '{{.Name}} {{.MemUsage}}'
+```
+Expected: `dashboard-be`、`dashboard-fe` 為 `Up`；`docker stats` 的記憶體數字記入證據檔（Docker 只配約 8.3 GB）。
+
+- [ ] **Step 3: 等待 BE 就緒（注意結尾斜線）**
 
 ```bash
 for i in $(seq 1 60); do
-  code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/api/v1/dashboard || true)"
+  code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/api/v1/dashboard/ || true)"
   [ "$code" = "200" ] && break; sleep 5
 done
-echo "BE /api/v1/dashboard -> $code"
+echo "BE /api/v1/dashboard/ -> $code"
+docker logs dashboard-be 2>&1 | grep -c 'Listening and serving HTTP'
 docker logs dashboard-be 2>&1 | tail -15
 ```
-Expected: `200`。若不是 200，BE 沒有專用 health 端點，以 `docker logs` 是否含 Gin 的 `Listening and serving HTTP` 與連線錯誤判斷，並把實際回應碼記入證據檔。
+Expected: `200`，且 log 含 `Listening and serving HTTP`。路由是 `GET("/", ...)`（`router.go:137`），不帶結尾斜線會得到 301。若不是 200：BE 沒有專用 health 端點，依 `docker logs` 判斷（是否有 `Fatalf`、資料庫或 Redis 連線錯誤），並把實際回應碼記入證據檔。該路由有 `LimitAPIRequests` 限流，若看到 429 就拉長輪詢間隔並記錄。
 
-- [ ] **Step 4: 檢查 repo 內的副作用（Review Focus 5）**
+- [ ] **Step 4: 確認 repo 乾淨**
 
-```bash
-cd ~/Taipei-City-Dashboard && git status -s && ls -ld docker/nginx/ssl 2>&1
-```
-Expected: `git status` 無輸出。若出現 `?? docker/nginx/ssl/`（docker 自動建立的空掛載目錄），將 `docker/nginx/ssl/` 加入 `.git/info/exclude`（本機排除，不改被追蹤檔），並記入 `MEMORY.md` 的踩坑。
+Run: `cd ~/Taipei-City-Dashboard && git status -s`
+Expected: 無輸出（`docker/.env`、`mapbox-key.txt`、`node_modules` 皆被忽略）。
 
 - [ ] **Step 5: 確認前端回應**
 
@@ -968,11 +933,11 @@ Expected: `FE 200` 與標題含「臺北城市儀表板」（來自 `VITE_APP_TI
 在 `docs/agent-workflow/evidence/phase1-verification.md` 依序記錄（每項貼上**實際指令輸出**，禁止憑印象）：
 
 1. FE：`curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/` → 200。
-2. BE：`curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/api/v1/dashboard` → 實際回應碼。
-3. 兩個 DB 的資料表數量（Task 7 Step 3 輸出）。
+2. BE：`curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/api/v1/dashboard/` → 實際回應碼。
+3. 兩個 DB 的資料表數量與關鍵表資料列數（Task 7 Step 3 輸出）。
 4. 預設管理員存在（Task 7 Step 4 輸出）。
-5. 重跑行為（Task 7 Step 5 的觀察）。
-6. 容器清單（Task 8 Step 2 輸出）。
+5. 重跑行為：靜態結論與重置指令（決策記錄 A9；不實測）。
+6. 容器清單、`docker stats` 記憶體、`docker image ls --digests`（Task 8 Step 2；記錄 `latest` 映像的 digest）。
 7. 已知差異：3D 建物圖層（`VITE_MAPBOXTILE` 留空）與行政區邊界（`/geo_server/...` 示範環境沒有）。
 
 - [ ] **Step 2: 瀏覽器驗收（gstack）**
@@ -1033,15 +998,10 @@ Expected: 產出決策/教訓/意外清單。
 Run: `cd ~/Taipei-City-Dashboard && bash docs/agent-workflow/check-docs.sh`
 Expected: `PASS`
 
-- [ ] **Step 4: 清理 worktree 與分支**
+- [ ] **Step 4: 確認 worktree 已清理**
 
-```bash
-cd ~/Taipei-City-Dashboard
-git worktree remove ~/Taipei-City-Dashboard-worktrees/make-env
-git branch -d feature/make-env
-git worktree list
-```
-Expected: 只剩主 checkout；`git branch -d` 成功（代表已完整合併）。
+Run: `cd ~/Taipei-City-Dashboard && git worktree list && git branch --list 'feature/*'`
+Expected: 只有主 checkout；沒有殘留的 `feature/*` 分支（Task 5 Step 8 已清理）。
 
 - [ ] **Step 5: 暫停交接（GSD）**
 

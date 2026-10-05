@@ -31,6 +31,9 @@
 4. 祕密：`mapbox-key.txt`、`docker/.env` 永不 commit、永不印出。commit 前用 token 的完整字串比對 staged diff（只比對，不印出）。
 5. 不設定任何 LLM/AI 服務金鑰（TWCC/OpenAI/Gemini）。注意：BE 啟動時**一定會**載入本地嵌入模型（`intfloat/multilingual-e5-base` 的 ONNX 版）與 onnxruntime，缺任何一個就 `log.Fatalf` 結束；所以 Docker build 的 `model_export` 階段是必經，不能略過。
 6. worktree 只看得到已 commit 的內容；交接檔先 commit 再派工。
+7. docker compose 只在整合 checkout（`~/Taipei-City-Dashboard/docker`）執行：compose 檔用固定 `container_name`，同一台機器只能有一組堆疊；worktree / Kandev task 不得跑 compose。
+8. Phase 1 只啟動 `redis postgres-data postgres-manager qdrant dashboard-fe dashboard-be`；不啟動 nginx、pgAdmin、`vector-db-upgrade`（見 `docs/decisions/0001-phase1-deploy-approach.md`）。
+9. 資料初始化是一次性動作，不重跑（init 會吞錯、重跑可能重複寫入）；要重做就刪 `postgres_data` / `postgres_manager_data` volume。
 
 ## 三層分工與交接
 - gstack＝決策與把關（`/office-hours`、`/plan-eng-review`、`/review`、`/qa`、`/cso`）
