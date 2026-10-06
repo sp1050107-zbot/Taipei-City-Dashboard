@@ -70,21 +70,21 @@
 | C7 | 計畫仍含不存在的 log 標記與過時的 build 時間估計 | 已更新；計畫內嵌的 bootstrap 程式碼同步為現行檔 |
 | C8 | `make-env.sh` 寫入失敗會留下殘檔，之後每次都「拒絕覆寫」 | 測試 10 RED（`ulimit -f` 直接套 shell 無效，因為 here-doc 先失敗，改用只對 python 生效的 PATH shim）→ GREEN：暫存檔＋`os.link` 無覆寫連結，失敗即清除 |
 
-審查者另外指出、我**刻意不修**（規則：Minor 不進修復輪）的 13 項，交由你決定：
+審查者另外指出、我**刻意不修**（規則：Minor 不進修復輪）的 13 項，交由你決定。Phase 2 啟動時順手清掉其中風險低、範圍小的幾項（狀態見各列）：
 
-1. `make-env.sh` 在 git 倉庫外執行會印 git fatal 雜訊，且無覆寫參數時默默寫到 `./docker/.env`
-2. `ENV_OUT` 不含目錄成分時 `makedirs('')` 噴 traceback
-3. token 檔有兩行時會被串接成一個字串
-4. `test-make-env.sh` 編號為 7、9、8；也沒斷言「未動到的模板行原樣保留」
-5. `AGENTS.md` 的埠表仍列 nginx 80/443、pgAdmin 8889，與同檔規則 8 矛盾；spec 105、107 行同樣過時
-6. 計畫 Self-Review 一行仍提到已移除的 `preflight.sh` 的 `PORTS`/`SKIP_DOCKER`
-7. `.planning/codebase/HANDOFF.md` 的探測路徑少了結尾斜線（歷史檔）
-8. `MEMORY.md` 同一事實出現兩次（Kandev 前綴）
-9. `qa-probe.js`、`kandev_bootstrap.py` 寫死絕對路徑／Kandev profile UUID；計畫內的 git 作者信箱含本機主機名
-10. `kandev_bootstrap.py` 沒處理 Kandev 未啟動（`URLError` 直接 traceback）
-11. （我自己的）ledger 對「token 檔為空」的後果寫反：實際是防洩漏檢查失敗閉鎖（誤報），不是靜默通過
-12. 決策記錄的未決項「輪詢 5 秒會不會觸發限流」沒在證據裡結案（審查者查到上限約 20000/duration，實測未見 429）
-13. 證據與 ledger 的記憶體數字不同（取樣時間不同）
+1. `make-env.sh` 在 git 倉庫外執行會印 git fatal 雜訊，且無覆寫參數時默默寫到 `./docker/.env` — 🟡 未修（腳本在未合併的 `feature/make-env` worktree，待 B17 核准合併後再處理）
+2. `ENV_OUT` 不含目錄成分時 `makedirs('')` 噴 traceback — 🟡 未修（同上，同一支腳本）
+3. token 檔有兩行時會被串接成一個字串 — 🟡 未修（同上）
+4. `test-make-env.sh` 編號為 7、9、8；也沒斷言「未動到的模板行原樣保留」 — 🟡 未修（同上）
+5. `AGENTS.md` 的埠表仍列 nginx 80/443、pgAdmin 8889，與同檔規則 8 矛盾；spec 105、107 行同樣過時 — ✅ 已修：`AGENTS.md` 埠表加「Phase 1 狀態」欄位標示未啟動；spec TCD-4/5/6 加「更正」註記對齊 ruling 3/4/9
+6. 計畫 Self-Review 一行仍提到已移除的 `preflight.sh` 的 `PORTS`/`SKIP_DOCKER` — ✅ 核對：目前計畫檔 Self-Review 章節已無此殘留，視為已解決
+7. `.planning/codebase/HANDOFF.md` 的探測路徑少了結尾斜線（歷史檔） — ✅ 已修：補上 `/`
+8. `MEMORY.md` 同一事實出現兩次（Kandev 前綴） — ✅ 已修：移除重複行
+9. `qa-probe.js`、`kandev_bootstrap.py` 寫死絕對路徑／Kandev profile UUID；計畫內的 git 作者信箱含本機主機名 — 🟡 未修（牽涉可攜性，留 Phase 2 計畫評估是否需要）
+10. `kandev_bootstrap.py` 沒處理 Kandev 未啟動（`URLError` 直接 traceback） — ✅ 已修：`call()` 補 `except urllib.error.URLError`，印出友善訊息；新增 `test_unreachable_raises_friendly_error`（mock，RED→GREEN 驗證過，不打實機）
+11. （我自己的）ledger 對「token 檔為空」的後果寫反：實際是防洩漏檢查失敗閉鎖（誤報），不是靜默通過 — 本列本身即為更正記錄，無需再修
+12. 決策記錄的未決項「輪詢 5 秒會不會觸發限流」沒在證據裡結案（審查者查到上限約 20000/duration，實測未見 429） — ✅ 已修：決策記錄改標「已結案」，附讀碼依據 `global/consts.go:30,35`（20000 次/60 秒，5 秒一次遠低於上限）
+13. 證據與 ledger 的記憶體數字不同（取樣時間不同） — 不修：屬採樣時間差異，非錯誤
 
 ## D. 我代你做的決定（executor rulings，全部可推翻）
 
@@ -111,4 +111,5 @@
 - ⏳ 確認決策記錄的 12 條 ruling 與本表 D 節
 - ⏳ 是否設定本機 git `user.name`／`user.email`；是否處理 A11（gstack 升級／routing）
 - ❓ A5：Codex 端 80 處 `.claude` 路徑的實際影響
-- 🟡 C 節 13 個 Minor；B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、B27（GA 追蹤）進入 Phase 2 計畫時處理
+- 🟡 C 節 13 個 Minor：5 項已於 Phase 2 啟動時修掉（5/6/7/8/10/12，共 6 項，見各列狀態）；餘 1–4（`make-env.sh`，待合併）、9（可攜性）留 Phase 2 計畫評估；11、13 無需修
+- B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、B27（GA 追蹤）進入 Phase 2 計畫時處理
