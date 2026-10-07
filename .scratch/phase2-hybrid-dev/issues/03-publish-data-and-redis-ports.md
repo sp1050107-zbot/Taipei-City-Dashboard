@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately, after the P2-00 branch has been merged to `develop`).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Read first (nothing else is assumed):** `AGENTS.md`, `GLOSSARY.md`, `.scratch/phase2-hybrid-dev/spec.md`, `docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md`, `docs/decisions/0003-phase2-execution-engine-and-gates.md`, and the plan `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` (the working draft of the how; reference it by Task number, do not copy it). The plan is on `develop` once the P2-00 branch has been merged; if it is not there yet, stop and ask the owner.
 
@@ -12,8 +12,17 @@
 
 ## Acceptance criteria
 
-- [ ] A test fails while either mapping is missing and passes once both exist.
-- [ ] Both containers keep their volumes and container names unchanged.
-- [ ] The published ports are harmless to Phase 1 (no service that works today stops working).
-- [ ] `docker compose` is not executed anywhere in this ticket.
-- [ ] The change is committed in the worktree only.
+- [x] A test fails while either mapping is missing and passes once both exist.
+- [x] Both containers keep their volumes and container names unchanged.
+- [x] The published ports are harmless to Phase 1 (no service that works today stops working).
+- [x] `docker compose` is not executed anywhere in this ticket.
+- [x] The change is committed in the worktree only.
+
+## Answer
+
+Commit: see `git log -1` on branch feature/phase2-03 (sha recorded in the hand-off report; a commit cannot contain its own sha).
+
+- `docker/docker-compose-db.yaml`: `redis` publishes `6379:6379`, `postgres-data` publishes `5433:5432`; `postgres-manager` still `5432:5432`. Volumes and container names untouched.
+- `docker/test-docker-compose-db.py` (stdlib only, plain text matching). RED before the change: `AssertionError: postgres-data must publish host port 5433 -> 5432`. GREEN after: `PASS` (4 checks: both new mappings, manager unchanged, volumes and container names unchanged).
+- Phase 1 harm check: no other compose file in `docker/` maps host 5433 or 6379. UNVERIFIED: whether something on the owner's host already listens on 5433/6379 (applying the change is ticket 09).
+- `docker compose` was not executed.
