@@ -82,8 +82,11 @@ ALLOWED="DB_MANAGER_PORT GIN_PORT GOTOOLCHAIN LM_MODEL_PATH ORT_LIBRARY_PATH RED
 [ "$NEW" = "$ALLOWED" ] || fail "unexpected new variables: [$NEW] (allowed [$ALLOWED])"
 
 # 2. Secrets never reach stdout or stderr (success and failure paths).
-run "$WORK/miss.out" "$WORK/miss.err" \
-  ORT_LIBRARY_PATH="$WORK/nope/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/" && true
+if run "$WORK/miss.out" "$WORK/miss.err" \
+  ORT_LIBRARY_PATH="$WORK/nope/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/"; then
+  fail "failure-path run unexpectedly succeeded"
+fi
+grep -q "not found" "$WORK/miss.err" || fail "failure-path run did not reach the missing-library check"
 for f in ok.out ok.err miss.out miss.err; do
   if grep -qE "$SENTINEL_JWT|$SENTINEL_PW" "$WORK/$f"; then fail "secret leaked in $f"; fi
 done
