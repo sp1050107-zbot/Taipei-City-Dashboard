@@ -41,12 +41,12 @@
 - `docker/test-docker-compose-db.py` — create: asserts those port mappings exist (and that postgres-manager's didn't change).
 - `Taipei-City-Dashboard-BE/dev-native.sh` — create: launches `go run main.go` with host-mode env overrides (including `GIN_PORT=8088`) layered on top of the real `docker/.env`.
 - `Taipei-City-Dashboard-BE/test-dev-native.sh` — create: asserts the overrides using a fixture env file and a stub `go`, never touching the real secret file.
-- `Taipei-City-Dashboard-BE/setup-native-model.sh` — create: idempotently fetches the macOS arm64 ONNX Runtime 1.23.2 library (only after owner approval, and only if its SHA256 matches) and copies the exported model out of the already-built `dashboard-be` container.
+- `Taipei-City-Dashboard-BE/setup-native-model.sh` — create: idempotently fetches the macOS arm64 ONNX Runtime 1.23.2 library (only after owner approval, and only if its SHA256 matches) and copies the exported model out of the built dev image (`dashboard-be-dev:latest`) via `docker create` and `docker cp`.
 - `Taipei-City-Dashboard-BE/onnxruntime.sha256` — create: the expected SHA256 of the official `onnxruntime-osx-arm64-1.23.2.tgz`, copied from the official release page by the implementer and confirmed by the owner at download approval.
 - `Taipei-City-Dashboard-BE/test-setup-native-model.sh` — create: asserts the idempotent skip path, the no-download-without-approval path, and the SHA256 match/mismatch paths, all with a stub `curl`.
 - `Taipei-City-Dashboard-FE/vite.server-config.js` — create: pure function resolving the dev-server `host`/`port`/`proxy` config from env, extracted so it's unit-testable without booting Vite.
 - `Taipei-City-Dashboard-FE/vite.config.js` — modify: delegate to `resolveServerConfig`.
-- `Taipei-City-Dashboard-FE/vite.server-config.test.mjs` — create: covers all four modes (compose / native-default / native-override / explicit-production).
+- `Taipei-City-Dashboard-FE/vite.server-config.test.mjs` — create: covers the three modes (compose / native-default / native-override).
 - `.gitignore` (repo root) — modify: add the FE `.env.*.local` family.
 - `Taipei-City-Dashboard-FE/test-env-local-ignored.sh` — create: asserts those paths are actually ignored.
 - `Taipei-City-Dashboard-FE/make-dev-env.sh` — create: writes `.env.local` from `mapbox-key.txt`, never overwriting, never printing the token.
@@ -651,13 +651,6 @@ import { resolveServerConfig } from "./vite.server-config.js";
 	assert.equal(cfg.proxy["/api/dev"].target, "http://localhost:9999");
 }
 
-// Explicit opt-in to the upstream production backend (pre-existing behavior, now opt-in only).
-{
-	const cfg = resolveServerConfig({ VITE_DEV_BACKEND: "production" });
-	assert.equal(cfg.port, 8080);
-	assert.equal(cfg.proxy["/api"].target, "https://citydashboard.taipei/api/v1");
-}
-
 console.log("PASS");
 ```
 
@@ -676,7 +669,6 @@ Expected: `Cannot find module './vite.server-config.js'`.
  */
 export function resolveServerConfig(env) {
 	const isDockerCompose = env.DOCKER_COMPOSE === "true";
-	const useRemoteBackend = env.VITE_DEV_BACKEND === "production";
 
 	if (isDockerCompose) {
 		return {
@@ -687,25 +679,6 @@ export function resolveServerConfig(env) {
 					target: "http://dashboard-be:8080", // container-internal BE port (Phase 1 only; the host-published BE port is 8088)
 					changeOrigin: true,
 					rewrite: (path) => path.replace("/dev", "/v1"),
-				},
-			},
-		};
-	}
-
-	if (useRemoteBackend) {
-		return {
-			host: "0.0.0.0",
-			port: 8080,
-			proxy: {
-				"/api": {
-					target: "https://citydashboard.taipei/api/v1",
-					changeOrigin: true,
-					rewrite: (path) => path.replace(/^\/api/, ""),
-				},
-				"/geo_server": {
-					target: "https://citydashboard.taipei/geo_server/",
-					changeOrigin: true,
-					rewrite: (path) => path.replace(/^\/geo_server/, ""),
 				},
 			},
 		};
