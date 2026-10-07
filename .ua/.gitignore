@@ -1,0 +1,5 @@
+# Local scratch from /understand (everything else in .ua/ is committed)
+intermediate/
+tmp/
+.trash-*/
+diff-overlay.json
