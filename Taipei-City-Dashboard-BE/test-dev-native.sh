@@ -126,6 +126,12 @@ if [ ! -f "$PWD/onnxruntime/lib/libonnxruntime.dylib" ]; then
 fi
 grep -q 'lm_model/onnx-e5' dev-native.sh || fail "default model path should be lm_model/onnx-e5"
 
+# 8. Error text must not cite a path that does not exist in the repo.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+for p in $(grep -E 'echo "dev-native' dev-native.sh | grep -oE '[A-Za-z0-9_./-]+/[A-Za-z0-9_.-]+\.(sh|md|template|py)'); do
+  [ -e "$REPO_ROOT/$p" ] || [ -e "$p" ] || fail "error text cites a path that does not exist: $p"
+done
+
 # 7. No container commands.
 if grep -vE '^\s*#' dev-native.sh | grep -qE 'docker[ -]compose|docker +(run|compose|start|up)'; then
   fail "launcher must not run docker or docker compose"

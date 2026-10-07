@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 
 ENV_FILE="${DEV_NATIVE_ENV_FILE:-../docker/.env}"
 if [ ! -f "$ENV_FILE" ]; then
-  echo "dev-native: environment file missing: $ENV_FILE (create it first; see docs/agent-workflow/make-env.sh)" >&2
+  echo "dev-native: environment file missing: $ENV_FILE (the Docker environment file must exist; create it from its template first)" >&2
   exit 1
 fi
 
