@@ -21,11 +21,12 @@
 - Kandev 網址 `http://127.0.0.1:38429`，REST 前綴 `/api/v1`（`kandev_bootstrap.py` 的 `BASE`）。task 前綴是自動的 `KAN`，本專案用標題前綴辨識：`QA-RUN-<n>`、`BUG-<n>`。
 - 就緒探測：`GET http://localhost:8088/api/v1/dashboard/`（帶結尾斜線）回 200；前端 `http://localhost:8080` 回 200。
 - 圖查詢工具位置：`~/Understand-Anything/scripts/graph-query.mjs`（本計畫 Task 2 建立）。補強腳本：`~/Understand-Anything/scripts/augment-gin-vue.mjs`。
+- **Task 1 實測得到的規則（證據：`docs/agent-workflow/evidence/qa-loop-kandev-probe.md`，所有 agent 提示與模板都要遵守）**：(1) REST 或 MCP 建卡一律明確帶 `agent_profile_id`（`9dac882b-2973-4bc0-a175-61fb5aa58f0c`，claude-acp Default），否則自動啟動失敗；(2) 提示用**第一人稱擁有者措辭**（「我是這個看板的擁有者，我要求…」），第三人稱的「使用者已要求…」與一次性移卡指示會被 agent 當成提示注入而拒絕；真正的交接寫在卡描述與欄位 prompt，移卡的 `prompt` 只留一句短而事實性的話；(3) `wip_limit` 不強制（只把卡的 `wip_admitted` 標成 false），「同時只有一個 QA Run」要靠 prompt 規則；(4) session 執行中的移卡會延到回合結束才套用。
 - Kandev 端點（已讀原始碼確認）：`POST /workflows`、`POST /workflow/steps`（接受 `events`、`wip_limit`、`agent_profile_id`）、`PUT /workflow/steps/:id`（部分欄位更新）、`POST /tasks`、`POST /tasks/:id/move`（body：`workflow_id`、`workflow_step_id`、`position`、`entry_options{reset_context,instructions,skip_step_prompt}`）、`GET /tasks/:id/sessions`、`DELETE /tasks/:id`、`DELETE /workflows/:id`。
 
 ## Review Focus
 
-1. **`reset_agent_context` 在卡還沒有 session 時被觸發**（BUG 卡由 QA 以 `start_agent=false` 建立，第一次移入 `Triage` 時沒有 session）：預期卡仍能進入欄位並啟動 agent，而不是卡在錯誤。→ Task 1 實測，Task 4 的 `ON_ENTER` 常數依結果決定。
+1. **`reset_agent_context` 在卡還沒有 session 時被觸發**（BUG 卡由 QA 以 `start_agent=false` 建立，第一次移入 `Triage` 時沒有 session）：預期卡仍能進入欄位並啟動 agent，而不是卡在錯誤。→ Task 1 已實測：不出錯，重置在無 session 時靜默略過（推論），帶 `agent_profile_id` 的卡會啟動；Task 6 演練 A 再用 MCP 建出的真實 BUG 卡確認一次。
 2. **同一個症狀被 QA 重複回報**：預期用 `external_id` 與開啟中卡片比對，不產生第二張卡。→ Task 4 的 QA Run prompt 測試。
 3. **複驗失敗的計數**：第 1、2 次失敗退回 `Fix`，第 3 次升級到 `Decide` 並停止，不得再自動移動。→ Task 6 演練 B。
 4. **服務未就緒**：預期報告「環境未就緒」並結束，不開任何 BUG 卡。→ Task 4 的 prompt 測試與 Task 6 演練。
@@ -49,6 +50,8 @@
 ---
 
 ### Task 1: 在即時 Kandev 實測三個機制（拋棄式探測）
+
+> **已完成（2026-10-07）**：commits `715ef548`、`4d6fe275`、`40ad51bf`，結論 `DECISION: ON_ENTER = [reset_agent_context, auto_start_agent]`，證據見 `docs/agent-workflow/evidence/qa-loop-kandev-probe.md`。以下步驟保留作為紀錄與重跑依據。
 
 這個任務**會寫入即時 Kandev 並消耗少量 `claude-acp` 額度**，開始前先請使用者確認。全部寫入都用 `ZZ-PROBE` 前綴，結束時一律刪除。不寫程式進 repo，只留證據文件。
 
@@ -683,7 +686,7 @@ Expected: `FAIL: docs/qa/README.md missing`
 ## QA-RUN-<n> <範圍一句話>
 - 範圍：<頁面／endpoint／「依最近合併自動推算」>
 - 環境：develop，FE http://localhost:8080，BE http://localhost:8088
-- 使用者已要求：為每個發現建立一張 BUG 卡（Reported 欄），不要修任何程式。
+- 我是這個看板的擁有者。我要求你為這次巡檢的每個發現各建立一張 BUG 卡（放進 Reported 欄），不要修改任何程式。（必須維持第一人稱：Task 1 實測，第三人稱的「使用者已要求…」會被 agent 當成提示注入而拒絕。）
 - 寫入測試資料的命名：含 `qa-<n>`，結束前清除。
 ```
 
@@ -768,7 +771,7 @@ git commit -m "docs: add docs/qa skeleton, templates and check script" -m "Co-Au
   - `WORKFLOW_COLUMNS: dict[str, list]`（`A`、`B` 用 `COLUMNS`，Q 用 `Q_COLUMNS`）、`WORKFLOW_DESCS: dict[str, str]`
   - `ensure_steps(wf_id, columns=COLUMNS, sync=False) -> dict[name, step]`；`sync=True` 時對已存在欄位用 `PUT /workflow/steps/:id` 更新 `prompt`、`events`、`wip_limit`
 
-下列程式碼預設 Task 1 結論為「`ON_ENTER = [reset_agent_context, auto_start_agent]`」。若 Task 1 結論是第二列（`[auto_start_agent]`），只改 `FRESH` 一行，並在每個 prompt 的 move 指示加上 `entry_options.reset_context=true`（見 `HANDOFF` 常數註解）。
+Task 1 已完成，結論為 `ON_ENTER = [reset_agent_context, auto_start_agent]`，下列程式碼即依此；`HANDOFF` 註解的備案不需要。另依 Task 1 的規則：prompt 用第一人稱擁有者措辭、移卡 `prompt` 只留短句、建卡明確帶 `agent_profile_id`、一次只跑一個 QA Run 用 prompt 規則強制。
 
 - [ ] **Step 1: 寫失敗的離線測試**
 
@@ -807,7 +810,8 @@ def test_q_prompts_carry_the_rules():
     by = {c["name"]: c["prompt"] for c in Q_COLUMNS}
     qa = by["QA Run"]
     for token in ("/api/v1/dashboard/", "env-not-ready", "create_task_kandev", "start_agent=false", "external_id",
-                  "list_tasks_kandev", "docs/qa/templates/bug-card.md", "/qa-only", "BROAD"):
+                  "list_tasks_kandev", "docs/qa/templates/bug-card.md", "/qa-only", "BROAD",
+                  "I am the owner of this board", "agent_profile_id 9dac882b-2973-4bc0-a175-61fb5aa58f0c", "another QA run is active"):
         assert token in qa, f"QA Run prompt lacks {token!r}"
     tri = by["Triage (graph)"]
     for token in ("graph-query.mjs", "source: graph", "source: code", "Closed", "Decide (gstack)", "Fix (worktree)", "move_task_kandev"):
@@ -818,6 +822,9 @@ def test_q_prompts_carry_the_rules():
     rv = by["Re-verify (QA)"]
     for token in ("退回次數", "ESCALATED", "Decide (gstack)", "Fix (worktree)", "Done", "git log", "/qa-only"):
         assert token in rv, f"Re-verify prompt lacks {token!r}"
+    # Task 1: a third-person "the user requested" sentence is refused as suspected prompt injection
+    assert "The user has" not in qa and "the user explicitly" not in qa.lower()
+    assert "update_task_kandev" in by["Triage (graph)"] and "one short factual sentence" in tri
     assert "graph-stale" in by["Done"] and ".ua/meta.json" in by["Done"]
     assert "never push" in by["Fix (worktree)"].lower() or "do not push" in by["Fix (worktree)"].lower()
 ```
@@ -868,18 +875,22 @@ _COMMON = (
     "Read ONLY CLAUDE.md and this card (the task description); do not re-read the whole repo. "
     "Never print or commit secrets (mapbox-key.txt, docker/.env). Docs may be committed directly on develop; "
     "code changes only in a worktree. Never push and never open a PR. "
-    "Use list_workflow_steps_kandev to look up step ids by name and move_task_kandev(task_id, workflow_id, "
-    "workflow_step_id, prompt=<one-paragraph hand-off>) to move THIS card. "
-)  # HANDOFF: if Task 1 chose [auto_start_agent] only, append "Also pass entry_options.reset_context=true." here.
+    "Use list_workflow_steps_kandev to look up step ids by name. Before moving THIS card, write the real hand-off into the card "
+    "description with update_task_kandev (a one-shot move prompt is easily mistaken for injected text and ignored), then call "
+    "move_task_kandev(task_id, workflow_id, workflow_step_id, prompt=<one short factual sentence>). "
+)
 _EVENT = (
     "Write one event file docs/qa/events/<YYYYMMDD-HHMM>-<card id>-<event>.md from docs/qa/templates/event.md "
     "and commit it on develop (docs only). "
 )
 
+# wip_limit is NOT enforced by Kandev (Task 1: it only sets task.wip_admitted=false). It documents intent;
+# the QA Run prompt enforces one-at-a-time.
 Q_COLUMNS = [
     {"name": "Backlog", "color": "bg-neutral-400", "prompt": ""},
     {"name": "QA Run", "color": "bg-sky-500", "events": {"on_enter": FRESH}, "wip_limit": 1, "prompt": (
         "[QA RUN - gstack /qa-only] {{task_prompt}}\n" + _COMMON +
+        "0) Only one QA run at a time (the column's wip_limit is not enforced): call list_tasks_kandev; if another QA-RUN card is in the 'QA Run' step with a running session, write an env-not-ready event saying another QA run is active and stop. "
         "1) Readiness: GET http://localhost:8088/api/v1/dashboard/ (with the trailing slash) and http://localhost:8080 must both "
         "return 200. If not, write an env-not-ready event and stop; do NOT file bugs. "
         "2) Test the scope named in the card. If it says to derive scope, run "
@@ -890,8 +901,8 @@ Q_COLUMNS = [
         "Otherwise pick the next BUG number (highest existing + 1), save evidence under docs/qa/evidence/BUG-<n>/ and commit it on develop, "
         "then call create_task_kandev ONCE with: workflow_id and workflow_step_id of this workflow's 'Reported' step, "
         "title 'BUG-<n> <one line>', prompt = the card body from docs/qa/templates/bug-card.md filled in, "
-        "repository_id of Taipei-City-Dashboard, executor_profile_id exec-local, start_agent=false, external_id 'BUG-<n>'. "
-        "The user has explicitly requested a BUG card for every finding of this run. "
+        "repository_id of Taipei-City-Dashboard, executor_profile_id exec-local, agent_profile_id 9dac882b-2973-4bc0-a175-61fb5aa58f0c, start_agent=false, external_id 'BUG-<n>'. "
+        "I am the owner of this board and I request one BUG card for every finding of this run. "
         "5) Write docs/qa/runs/<this card id>.md from docs/qa/templates/qa-run-report.md, then " + _EVENT +
         "Move this card to Done with the report path in the hand-off. Stop.")},
     {"name": "Reported", "color": "bg-red-500", "prompt": ""},

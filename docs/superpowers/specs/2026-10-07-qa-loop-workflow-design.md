@@ -190,11 +190,11 @@ BUG 卡的描述就是交接檔，標頭沿用 `目標 / 已決定 / 未決定 /
 **已查證的問題（2026-10-07，讀 Kandev 原始碼 `~/Documents/sp1050107-zbot/kandev`、`docs/features.md` 與即時 API；尚未在即時環境實測，實測列在實作計畫第一個任務）**
 
 1. **agent 能否在 session 內開卡 → 可以。** Kandev 對一般 task session 自動提供 task 範圍的 MCP（server 名 `kandev`，Claude Code 內工具名形如 `mcp__kandev__create_task_kandev`）。可用工具含 `create_task_kandev`、`move_task_kandev`、`step_complete_kandev`、`list_tasks_kandev`、`list_workflow_steps_kandev`、`update_task_kandev`、`write_task_document_kandev`、`message_task_kandev`。`create_task_kandev` 的關鍵參數：`workflow_id`、`workflow_step_id`（指定落在哪一欄）、`title`、`prompt`（新 session 唯一的上下文）、`start_agent`（預設 true）、`repository_id`、`executor_profile_id`、`external_id`（同一 workspace 內相同值只會建一次，用來防重複建卡，BUG 編號就用它）。
-   - 注意：工具說明寫「只用於使用者要求的 Kandev 追蹤工作」。`QA-RUN` 卡的描述必須明講「使用者已要求為每個發現建立 BUG 卡」，否則 agent 可能拒絕。
+   - 注意：工具說明寫「只用於使用者要求的 Kandev 追蹤工作」。已實測：第三人稱的「使用者已要求…」被 agent 當成提示注入而拒絕，**第一人稱擁有者措辭**（「我是這個看板的擁有者，我要求…」）才照做。`QA-RUN` 卡描述與 QA Run 欄 prompt 都要用第一人稱。
    - 備案（腳本依報告建卡）降為只在實測失敗時啟用。
 2. **欄位移入是否自動啟動 session → 只有欄位設了 `on_enter` 動作 `auto_start_agent` 才會。** 即時 API 顯示現有 A 流程所有欄位的 `events` 都是空的，所以 A/B 流程移卡**不會**自動啟動 agent，要手動啟動。Q workflow 要在建欄位時用 `events: {"on_enter": [...]}` 明確設定（`POST /workflow/steps` 接受 `events`、`agent_profile_id`、`wip_limit`）。
 3. **session 是否沿用 → 預設沿用。** `auto_start_agent` 以該 task 既有的 session 啟動，上下文會一路帶過各欄位。要「每欄一個乾淨 session」（也是「複驗不同於修復」的條件），要在該欄加 `reset_agent_context`（重啟 agent 子程序、換新 ACP session）。移卡時也可帶一次性交接指示（`instructions`）與 `reset_context` 選項（MCP `move_task_kandev` 的 entry options）。
-4. **欄位並行限制**：欄位有 `wip_limit`，可用在 `QA Run`、`Re-verify` 限制同時一個（其強制行為待實測）。
+4. **欄位並行限制**：欄位有 `wip_limit`，可用在 `QA Run`、`Re-verify` 限制同時一個。**已實測：不強制**（只標記 `wip_admitted=false`），因此改由 prompt 規則在開始前檢查。
 
 **欄位的 Kandev 設定（落實上面結論）**
 
@@ -209,11 +209,13 @@ BUG 卡的描述就是交接檔，標頭沿用 `目標 / 已決定 / 未決定 /
 | Re-verify (QA) | `auto_start_agent`、`reset_agent_context` | `wip_limit` 1；乾淨 session |
 | Done、Closed | `auto_start_agent`、`reset_agent_context` | `Done` 設 `complete_task_on_enter` |
 
-**仍待實測（實作計畫第一個任務）**
-1. 在即時 Kandev 以 `start_agent=false` 的拋棄式卡，確認 `claude-acp` session 真的有 `create_task_kandev` 可呼叫、不被權限政策擋下。
-2. 確認 `auto_start_agent` 在 REST 建立的欄位上，從 UI 拖卡與從 `move_task_kandev` 移卡兩種路徑都會觸發。
-3. 確認 `reset_agent_context` 之後 agent 讀不到上一欄的對話。
-4. 確認 `wip_limit` 的強制行為。
+**已實測（2026-10-07，證據 `docs/agent-workflow/evidence/qa-loop-kandev-probe.md`）**
+1. `claude-acp` session 能呼叫 `create_task_kandev`、`move_task_kandev`、`list_workflow_steps_kandev`；移卡在 session 執行中會延到回合結束才套用。**條件**：提示須為第一人稱擁有者措辭，一次性移卡指示也容易被當成提示注入，真正的交接要寫在卡描述。
+2. REST 移卡會觸發 `auto_start_agent`，**前提是卡帶 `agent_profile_id`**（沒帶則 `auto_start_failed`，卡停在 `SCHEDULING`）；從 UI 拖卡未驗證。
+3. `reset_agent_context` 會隔離上下文（有正向對照：不重置的對照卡能回出祕密，重置的回 `NONE`）；無 session 的卡移入有 reset 的欄位不出錯。
+4. `wip_limit` **不強制**，只把超額卡的 `wip_admitted` 標成 false；「同時只有一個 QA Run / Re-verify」要靠 prompt 規則（先 `list_tasks_kandev` 檢查）。
+
+**仍未解決**：三張沒帶 `agent_profile_id` 的卡後來也有 session（來源不明）；UI 拖卡；相同 `external_id` 重複建卡的行為；`wip_admitted=false` 的實際作用。
 
 **其餘開放問題**
 5. **圖的查詢工具**：見 §5.5。
@@ -224,7 +226,7 @@ BUG 卡的描述就是交接檔，標頭沿用 `目標 / 已決定 / 未決定 /
 
 - 擴充 `docs/agent-workflow/kandev_bootstrap.py`：目前所有 workflow 共用同一組 `COLUMNS`，要改成每條 workflow 自己的欄位；新增 `Q 品質迴圈` 與 §3 的欄位及 prompt；維持冪等，並更新 `test_kandev_bootstrap.py`（含 Q workflow 的欄位順序、`QA Run` 前置 `Backlog`、`Done` 的 `complete_task_on_enter`）。此檔為程式碼，走 worktree。
 - 建立 `docs/qa/` 骨架與模板：`runs/`、`events/`、`digest/`、`evidence/` 與 BUG 卡模板。
-- 實測 §8「仍待實測」四項，並解決開放問題 5、6。
+- §8 的實測已在計畫 Task 1 完成；本計畫其餘任務解決開放問題 5、6。
 - **端到端演練**：用一個刻意植入、可還原的小缺陷，從 `QA-RUN` 一路走到 `Done`，並強制一次複驗失敗以驗證退回與升級規則。驗收條件：每個欄位 session 只讀 `CLAUDE.md` 與卡；候選檔案包含真正需要改的檔案；產生事件檔與摘要檔；無祕密外洩；圖的新鮮度檢查會在不一致時提示。
 - 驗收通過後，把狀態與里程碑更新到 `MEMORY.md`，並在 `CLAUDE.md` 的 Kandev 段落補上 Q workflow 一行。
 
