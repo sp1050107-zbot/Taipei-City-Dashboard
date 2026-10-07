@@ -267,6 +267,8 @@ git commit -m "docs: record Kandev probe results for QA loop" -m "Co-Authored-By
 
 ### Task 2: 圖查詢工具 `graph-query.mjs`（在 `~/Understand-Anything` fork）
 
+> **已完成（2026-10-07）**：fork commits `8092737`（工具）與 `5169982`（`--depth` 驗證、路徑正規化、補測試）。下方程式碼為實際 commit 的版本，步驟保留作為紀錄。
+
 解決 spec §5.5。放在 fork 而不是本 repo，因為它讀的是 Understand-Anything 的圖格式，且與 `augment-gin-vue.mjs` 同一處維護。
 
 **Files:**
@@ -380,6 +382,87 @@ describe('graph-query', () => {
     const ok = execFileSync('node', [SCRIPT, dir, 'chain', 'GET /api/v1/x', '--json'], { encoding: 'utf8' });
     expect(JSON.parse(ok).files.map(f => f.file)).toContain('c/x.go');
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  // --- honesty / input-handling behaviours ---
+  const withGraph = (g, fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ua-gq-x-'));
+    fs.mkdirSync(path.join(dir, '.ua'));
+    fs.writeFileSync(path.join(dir, '.ua/knowledge-graph.json'), JSON.stringify(g));
+    try { return fn(dir); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  };
+  const run = (...a) => spawnSync('node', [SCRIPT, ...a], { encoding: 'utf8' });
+
+  it('does not flag impact as broad when it reaches only some endpoints, and lists them', () => {
+    const g = {
+      nodes: [
+        n('endpoint:r.go:GET /a', 'endpoint', { name: 'GET /a', filePath: 'r.go' }), n('endpoint:r.go:GET /b', 'endpoint', { name: 'GET /b', filePath: 'r.go' }),
+        n('function:a/a.go:A', 'function', { name: 'A', filePath: 'a/a.go' }), n('file:a/a.go', 'file', { filePath: 'a/a.go' }),
+        n('function:b/b.go:B', 'function', { name: 'B', filePath: 'b/b.go' }), n('file:b/b.go', 'file', { filePath: 'b/b.go' }),
+      ],
+      edges: [{ source: 'endpoint:r.go:GET /a', target: 'function:a/a.go:A', type: 'routes' }, { source: 'endpoint:r.go:GET /b', target: 'function:b/b.go:B', type: 'routes' }],
+      layers: [],
+    };
+    withGraph(g, dir => {
+      const out = JSON.parse(run(dir, 'impact', 'a/a.go', '--json').stdout);
+      expect(out.broad).toBe(false);
+      expect(out.totalEndpoints).toBe(2);
+      expect(out.endpoints).toEqual(['GET /a']);
+      const text = run(dir, 'impact', 'a/a.go').stdout;
+      expect(text).not.toMatch(/BROAD/);
+      expect(text).toContain('GET /a');
+      expect(text).not.toContain('GET /b');
+    });
+  });
+
+  it('validates --depth: bad or missing values exit 1 with usage; a valid value keeps the query intact', () => {
+    withGraph(graph, dir => {
+      for (const bad of [['--depth', 'abc'], ['--depth', '0'], ['--depth', '-2'], ['--depth', '1.5']]) {
+        const r = run(dir, 'chain', 'GET /api/v1/x', ...bad);
+        expect(r.status, bad.join(' ')).toBe(1);
+        expect(r.stderr).toMatch(/usage/i);
+      }
+      const last = run(dir, 'chain', 'GET /api/v1/x', '--depth');
+      expect(last.status).toBe(1);
+      expect(last.stderr).toMatch(/usage/i);
+      const ok = run(dir, 'chain', 'GET /api/v1/x', '--depth', '2', '--json');
+      expect(ok.status).toBe(0);
+      expect(JSON.parse(ok.stdout).files.map(f => f.file)).toEqual(['c/x.go', 's/x.go']);
+      // flag before the query and a depth value equal to a positional must not eat the wrong argument
+      const early = run('--depth', '2', dir, 'chain', 'GET /api/v1/x', '--json');
+      expect(JSON.parse(early.stdout).files.map(f => f.file)).toEqual(['c/x.go', 's/x.go']);
+    });
+  });
+
+  it('impact normalises ./relative and absolute paths against the project root', () => {
+    withGraph(graph, dir => {
+      const files = (...a) => JSON.parse(run(dir, 'impact', ...a, '--json').stdout).files.map(f => f.file);
+      const base = files('m/x.go');
+      expect(base).toContain('c/x.go');
+      expect(files('./m/x.go')).toEqual(base);
+      expect(files(path.join(dir, 'm/x.go'))).toEqual(base);
+      const miss = run(dir, 'impact', '/definitely/outside/y.go');
+      expect(miss.status).toBe(2);
+      expect(miss.stderr).toContain('/definitely/outside/y.go');
+    });
+  });
+
+  it('collapses symbol-less deeper files into a "more" line and --all lists them', () => {
+    const g = {
+      nodes: ['a/a.go', 'b/b.go', 'c/c.go', 'd/d.go'].map(f => n(`file:${f}`, 'file', { filePath: f })),
+      edges: [{ source: 'file:a/a.go', target: 'file:b/b.go', type: 'imports' }, { source: 'file:b/b.go', target: 'file:c/c.go', type: 'imports' }, { source: 'file:b/b.go', target: 'file:d/d.go', type: 'imports' }],
+      layers: [],
+    };
+    withGraph(g, dir => {
+      const text = run(dir, 'chain', 'a/a.go', '--depth', '2').stdout;
+      expect(text).toContain('b/b.go');
+      expect(text).toMatch(/\+2 more \(package-level imports\)/);
+      expect(text).not.toContain('c/c.go  [');
+      const all = run(dir, 'chain', 'a/a.go', '--depth', '2', '--all').stdout;
+      expect(all).toContain('c/c.go');
+      expect(all).toContain('d/d.go');
+      expect(all).not.toMatch(/more \(package-level imports\)/);
+    });
   });
 });
 ```
@@ -507,22 +590,37 @@ export function printText(title, s, all = false) {
 
 function main() {
   const args = process.argv.slice(2);
+  const usage = 'usage: graph-query.mjs <projectRoot> chain "<query>" | impact <path>... [--depth N] [--json]';
   const flags = args.filter(a => a.startsWith('--'));
-  const pos = args.filter(a => !a.startsWith('--'));
   const depthIdx = args.indexOf('--depth');
-  const depth = depthIdx >= 0 ? Number(args[depthIdx + 1]) : 3;
-  if (depthIdx >= 0) pos.splice(pos.indexOf(args[depthIdx + 1]), 1);
+  let depth = 3;
+  if (depthIdx >= 0) {
+    const value = args[depthIdx + 1];
+    depth = Number(value);
+    if (value === undefined || value.trim() === '' || !Number.isInteger(depth) || depth < 1) {
+      console.error(usage);
+      process.exit(1);
+    }
+  }
+  const pos = args.filter((a, i) => !a.startsWith('--') && !(depthIdx >= 0 && i === depthIdx + 1));
   const [root, cmd, ...rest] = pos;
   if (!root || !['chain', 'impact'].includes(cmd) || !rest.length) {
-    console.error('usage: graph-query.mjs <projectRoot> chain "<query>" | impact <path>... [--depth N] [--json]');
+    console.error(usage);
     process.exit(1);
   }
-  const graph = loadGraph(path.resolve(root));
+  const projectRoot = path.resolve(root);
+  const graph = loadGraph(projectRoot);
+  // impact paths may be ./relative or absolute; match them as project-relative. Outside the project: keep as typed.
+  const normalise = p => {
+    const rel = path.relative(projectRoot, path.resolve(projectRoot, p));
+    return rel.startsWith('..') ? p : rel;
+  };
+  const targets = cmd === 'impact' ? rest.map(normalise) : rest;
   let starts;
   if (cmd === 'chain') starts = findStart(graph, rest.join(' '));
-  else starts = rest.flatMap(p => [...nodesOfFile(graph, p), ...graph.nodes.filter(n => n.id === `file:${p}`)]);
+  else starts = targets.flatMap(p => [...nodesOfFile(graph, p), ...graph.nodes.filter(n => n.id === `file:${p}`)]);
   if (!starts.length) {
-    const hint = graph.nodes.filter(n => n.type === 'file' && n.filePath?.toLowerCase().includes(path.basename(rest[0]).toLowerCase())).slice(0, 5).map(n => n.filePath);
+    const hint = graph.nodes.filter(n => n.type === 'file' && n.filePath?.toLowerCase().includes(path.basename(targets[0]).toLowerCase())).slice(0, 5).map(n => n.filePath);
     console.error(`No node matches "${rest.join(' ')}".` + (hint.length ? ` Similar files: ${hint.join(', ')}` : ''));
     process.exit(2);
   }
@@ -538,7 +636,7 @@ if (import.meta.url === `file://${process.argv[1]}`) main();
 - [ ] **Step 4: 執行測試確認通過**
 
 Run: `cd ~/Understand-Anything && npx vitest run tests/scripts/graph-query.test.mjs && npx eslint scripts/graph-query.mjs tests/scripts/graph-query.test.mjs`
-Expected: 6 個測試 PASS，ESLint 無輸出。
+Expected: 10 個測試 PASS，ESLint 無輸出。（2026-10-07 執行後依審查加入 `--depth` 驗證、`impact` 路徑正規化與四個行為測試；程式碼為實際 commit `8092737`＋`5169982` 的版本。）
 
 - [ ] **Step 5: 在真實圖上驗證**
 
