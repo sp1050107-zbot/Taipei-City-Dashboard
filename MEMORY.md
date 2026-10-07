@@ -8,6 +8,7 @@
 - [Phase 1 學習萃取](.planning/codebase/LEARNINGS-phase1.md) — 決策/教訓/模式/意外
 - [交接檔](.planning/HANDOFF-phase1.md) — 下一個 session 先讀這份
 - [Phase 1 問題與處理總表](docs/agent-workflow/phase1-issue-log.md) — 環境前置、各 Task、最終審查的每個狀況、處理方式、狀態；含 15 條 executor ruling 與 13 個 deferred Minor
+- [知識圖說明](CLAUDE.md#知識圖understand-anything) — `.ua/` 圖的建法、補強指令；`.vue` 檔無 parser（摘要為推斷）
 
 ## 已定案決定
 - 檔名用 AGENTS.md；.planning/ 納入 git；本輪不接 Codex；不設 AI/LLM 金鑰；Mapbox 用使用者自己的 token（`mapbox-key.txt`，不入 git）。

@@ -26,7 +26,7 @@
 
 ## 工作規則
 1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。
-2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`docs/`、`.planning/` 可直接在整合 checkout commit。
+2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`docs/`、`.planning/`、`.ua/`（Understand-Anything 產出的知識圖，非程式碼，使用者 2026-10-07 同意）可直接在整合 checkout commit。
 3. 不 `git push`、不對 upstream 發 PR，除非使用者明確指示。
 4. 祕密：`mapbox-key.txt`、`docker/.env` 永不 commit、永不印出。commit 前用 token 的完整字串比對 staged diff（只比對，不印出）。
 5. 不設定任何 LLM/AI 服務金鑰（TWCC/OpenAI/Gemini）。注意：BE 啟動時**一定會**載入本地嵌入模型（`intfloat/multilingual-e5-base` 的 ONNX 版）與 onnxruntime，缺任何一個就 `log.Fatalf` 結束；所以 Docker build 的 `model_export` 階段是必經，不能略過。
