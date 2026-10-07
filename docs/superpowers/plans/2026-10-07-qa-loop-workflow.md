@@ -62,6 +62,19 @@
   - `AUTO_START_VIA_UI_MOVE` / `AUTO_START_VIA_REST_MOVE`: `yes` | `no`
   - `RESET_ISOLATES_CONTEXT`: `yes` | `no`
   - `AGENT_CAN_CREATE_AND_MOVE`: `yes` | `no`（`create_task_kandev` 與 `move_task_kandev` 在 `claude-acp` session 內可呼叫）
+  - `REST_CREATE_NEEDS_AGENT_PROFILE`: `yes` | `no`（2026-10-07 首次執行觀察到：REST 建卡不帶 `agent_profile_id` 時 `auto_start_failed`）
+  - `CREATE_IN_AUTO_STEP_STARTS_AGENT`: `yes` | `no`（首次執行觀察到：直接在有 `auto_start_agent` 的欄位建卡沒有產生 session，移入才啟動——待 1a 確認）
+
+**執行修訂（2026-10-07 首次執行後）**
+
+首次執行（單一 agent 跑完整個 Task 1）約 17 分鐘後在途中中斷，且有三個設計問題。已知並修正如下，之後依 1a–1d 四段分別派工，每段目標 5 分鐘內完成、失敗影響範圍小：
+
+1. 時間預估：Kandev 每次啟動 agent session 約 60–70 秒，6 個實驗光等待就 7 分鐘以上。不要用前景 `sleep`（超過 120 秒會被轉背景、`sleep 60` 會被 harness 擋下）；等待用 `timeout 100 python3 script.py`（腳本內 `time.sleep` ≤ 80 秒）或背景命令加 until-loop。
+2. `mk_task` 必須帶 `"agent_profile_id": "9dac882b-2973-4bc0-a175-61fb5aa58f0c"`（下方 Step 2 程式碼已更正），否則卡 `auto_start_failed`。
+3. Step 4 的隔離實驗設計有缺陷：祕密字寫在卡描述裡，而描述每次進欄位都會被當作 `{{task_prompt}}` 重送，所以回答 `STORED` 在隔離與不隔離兩種情況下都成立。已改為「祕密只放在一次性 `instructions`，並加一個正向對照」（下方 Step 4）。
+4. 重用現有探測物件：`probe_state.json`（scratchpad）記錄了 workflow `b21dd736…`、欄位 `a`/`b`/`c` 與 6 張卡的 id；1a 直接檢視它們已產生的 session 與訊息，不重做。
+
+分段對應：**1a** = Step 3 + 檢視既有結果（`RESET_ON_SESSIONLESS_ENTRY`、`AUTO_START_VIA_REST_MOVE`、`REST_CREATE_NEEDS_AGENT_PROFILE`、`CREATE_IN_AUTO_STEP_STARTS_AGENT`）；**1b** = Step 4（`RESET_ISOLATES_CONTEXT`）；**1c** = Step 6 + Step 7（`AGENT_CAN_CREATE_AND_MOVE`、`wip_limit`）；**1d** = Step 5（UI，可標 unverified）+ Step 8–10（清理、證據文件、commit）。各段把結論追加到 `$WS/task-1-findings.md`，1d 彙整成證據文件。
 
 - [ ] **Step 1: 請使用者確認可以在即時 Kandev 建立並刪除 `ZZ-PROBE` 前綴的工作流與卡片**
 
@@ -110,6 +123,7 @@ def mk_step(wf, name, pos, events, wip=None, prompt=""):
 def mk_task(wf, step, title, desc, repo):
     t = call("POST", "/tasks", {"workspace_id": WS, "workflow_id": wf, "workflow_step_id": step, "title": title,
                                 "description": desc, "executor_id": EXEC,
+                                "agent_profile_id": "9dac882b-2973-4bc0-a175-61fb5aa58f0c",
                                 "repositories": [{"repository_id": repo, "base_branch": "develop"}]})
     print("task", title, t.get("id") or t)
     return t["id"]
@@ -156,18 +170,32 @@ print("sessions after move:", sessions(t1))
 
 記錄：移入時 REST 是否回錯誤、40 秒後是否有 session 並產生回覆（回覆含 `PROBE-B-OK`）。對應結論 `RESET_ON_SESSIONLESS_ENTRY` 與 `AUTO_START_VIA_REST_MOVE`。
 
-- [ ] **Step 4: 探測 B —— `reset_agent_context` 是否隔離上下文**
+- [ ] **Step 4: 探測 B —— `reset_agent_context` 是否隔離上下文（含正向對照）**
+
+設計原則：卡描述**不含**祕密（描述每次進欄位都會重送）；祕密只放在某次移卡的一次性 `instructions`；另用一張不重置的對照卡證明這個實驗有能力偵測到洩漏。步驟（`b` = `reset_agent_context + auto_start_agent`，`a` = 只有 `auto_start_agent`，`c` = 無動作）：
 
 ```python
-t2 = mk_task(wf, a, "ZZ-PROBE context", "Remember the secret word PINEAPPLE-7731. Reply with: STORED and stop.", repo)
-time.sleep(40); print(sessions(t2))
-print(move(t2, wf, b, instructions="Without using any tool, what secret word were you asked to remember earlier in this conversation? If you cannot see one, reply exactly: NONE."))
-time.sleep(40)
-for s in (sessions(t2) if isinstance(sessions(t2), list) else []):
-    print(s.get("id"), s.get("state"))
+# 兩張卡都建在 c（無動作、無 session），描述只要求回 READY
+tI = mk_task(wf, c, "ZZ-PROBE iso", "Reply with exactly: READY and stop. Do not use any file or shell tools.", repo)   # 受測卡
+tC = mk_task(wf, c, "ZZ-PROBE ctrl", "Reply with exactly: READY and stop. Do not use any file or shell tools.", repo)  # 對照卡
+SECRET = "Remember the secret word PINEAPPLE-7731. Reply with: STORED and stop."
+ASK = "Without using any tool, what secret word were you asked to remember earlier in this conversation? If you cannot see one, reply exactly: NONE."
+# 第一輪：兩張都移進 b，帶祕密（b 第一次進入，會建立新對話）
+move(tI, wf, b, instructions=SECRET); move(tC, wf, b, instructions=SECRET)
+time.sleep(80)                      # 兩個 session 並行啟動
+# 兩張都回 c 待命（c 無動作），再各自詢問
+move(tI, wf, c); move(tC, wf, c)
+move(tI, wf, b, instructions=ASK)   # 受測：進入有 reset 的欄位
+move(tC, wf, a, instructions=ASK)   # 對照：進入沒有 reset 的欄位
+time.sleep(80)
+for t in (tI, tC):
+    for s_ in sessions(t): print(t, s_["id"], s_["state"]); show_msgs(s_["id"], 400)
 ```
 
-用 Kandev 介面 `http://127.0.0.1:38429` 打開 `ZZ-PROBE context` 卡，讀最後一段回覆：回 `NONE` → `RESET_ISOLATES_CONTEXT=yes`；回 `PINEAPPLE-7731` → `no`。（`GET /agent-sessions/<id>/messages` 也可讀。）
+判讀（四個結果都要記下）：
+- 對照卡回 `PINEAPPLE-7731` → 實驗有效（沒有 reset 時對話會沿用）。**若對照卡回 NONE，實驗無效**，記為 inconclusive 並改用同一 session 內的第二輪移卡重做，不得下結論。
+- 受測卡回 `NONE` 且時間軸出現 `Context reset — new conversation started` → `RESET_ISOLATES_CONTEXT=yes`。
+- 受測卡回 `PINEAPPLE-7731` → `no`（停止，回報使用者，見 Step 9 的 `DECISION: STOP`）。
 
 - [ ] **Step 5: 探測 C —— 從 UI 拖卡是否也觸發**
 
