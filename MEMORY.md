@@ -12,7 +12,8 @@
 
 ## 已定案決定
 - 檔名用 AGENTS.md；.planning/ 納入 git；本輪不接 Codex；不設 AI/LLM 金鑰；Mapbox 用使用者自己的 token（`mapbox-key.txt`，不入 git）。
-- 本機 git 尚未設定 user.name/email（使用者決定），不 push。
+- git 身分沿用自動偵測的 `opsai@…local`，不另設 user.name/email（使用者 2026-10-07 同意）；不 push。
+- `.ua/`（Understand-Anything 知識圖）視為非程式碼，可直接在 `develop` commit（使用者 2026-10-07 同意，已寫入 AGENTS.md 規則 2）。
 
 ## 踩坑與事實（實測/讀碼得到）
 - BE 啟動必載本地嵌入模型與 onnxruntime（`Taipei-City-Dashboard-BE/app/app.go:47`，失敗即 `log.Fatalf`）→ Docker 的 `model_export` 階段是必經，沒有「純 golang image」備案。
@@ -34,5 +35,6 @@
 
 ## 目前狀態
 - **Phase 1 已部署，驗收 3/4 項通過；管理員登入尚待使用者驗證**（Task 1–10 皆完成）：FE 8080、BE 8088、兩個 DB（示範資料已載入）、Redis、Qdrant 皆運行；瀏覽器 QA 三頁 PASS（含預期的 3D 建物/行政區缺口）。
-- **待使用者處理**：(1) 核准把 `feature/make-env` 合併進 `develop`（尚未合併，腳本目前只在 worktree `~/Taipei-City-Dashboard-worktrees/make-env`）；(2) 自行驗證管理員登入；(3) 確認決策記錄的 12 條 ruling；(4) 是否設定本機 git `user.name`/`user.email`。
+- **待使用者處理**：(1) 核准把 `feature/make-env` 合併進 `develop`（尚未合併，腳本目前只在 worktree `~/Taipei-City-Dashboard-worktrees/make-env`）；(2) 自行驗證管理員登入；(3) 確認決策記錄的 12 條 ruling。
+- **知識圖已建並 commit**（2026-10-07）：`.ua/knowledge-graph.json`，1010 檔、2031 節點、3363 邊、10 層、13 步導覽，說明為 zh-TW；已補 40 個 Gin 路由節點與 `.vue` import 邊（工具 `~/Understand-Anything/scripts/augment-gin-vue.mjs`，`/understand` 增量更新後要重跑）。已知限制：99 個 `.vue` 檔無 parser，摘要為依檔名推斷；DE 的 `job_config.json` 摘要為部分讀取。
 - **下一步**：寫 Phase 2（混合式開發）計畫；候選客製：移除 GA 追蹤、MapLibre 替換（選配）。
