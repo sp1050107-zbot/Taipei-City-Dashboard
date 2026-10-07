@@ -28,3 +28,17 @@
 ## 常用檢查
 - 文件三件組：`bash docs/agent-workflow/check-docs.sh`
 - Kandev 狀態：`python3 docs/agent-workflow/test_kandev_bootstrap.py`
+
+## Agent skills
+
+### Issue tracker
+
+Tickets and specs are local markdown under `.scratch/`; each ticket has one Kandev card that only points to its file. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five roles, recorded as `Status:` text in each ticket file (no GitHub labels). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the repo root, decisions (what other templates call ADRs) in `docs/decisions/`. See `docs/agents/domain.md`.
