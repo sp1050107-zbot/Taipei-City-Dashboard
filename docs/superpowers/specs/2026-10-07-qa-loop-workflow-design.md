@@ -73,6 +73,7 @@ BUG:   Reported ─▶ Triage ─┬─(S3/S4 且單一層)───────
 ```
 
 - `QA-RUN` 卡與 BUG 卡共用同一條 workflow、同一個 Kanban，靠標題前綴辨識：`QA-RUN-<n>`、`BUG-<n>`（Kandev 自動前綴與既有 workspace 相同，沿用 `P1-xx` 的做法）。編號取現有最大值加一。
+- Kandev 欄位的 `on_enter` 與 `wip_limit` 設定見 §8。
 - 各欄位 prompt 沿用 `kandev_bootstrap.py` 現有風格（`[角色 - 技能] {{task_prompt}}` + 只讀 `CLAUDE.md` 與卡內交接 + 結束條件）。
 
 ## 4. 各欄位職責與規則
@@ -186,18 +187,44 @@ BUG 卡的描述就是交接檔，標頭沿用 `目標 / 已決定 / 未決定 /
 - 任何證據、事件檔、摘要在 commit 前用 `mapbox-key.txt` 的完整字串比對 staged diff（只比對、不印出）；`docker/.env` 不讀不印（`AGENTS.md` 規則 4）。
 - 環境未就緒不算 bug，不開卡。
 
-**開放問題（實作計畫要逐一驗證，不得靠猜）**
-1. **agent 能否在 session 內開卡**：上游 spec §9.1 記載 `POST /api/v1/tasks` 可用，但「由 agent session 呼叫」未實測。備案：QA 報告列出 bug，由一個小腳本（擴充 `kandev_bootstrap.py` 風格、冪等）依報告建卡。
-2. **圖的查詢工具**：見 §5.5。
-3. **後端合併後如何載入新碼**：Phase 1 的 BE 是容器內 `go run`（`dashboard-be-dev`），是否自動重載、是否要重建映像未驗證；Phase 2（混合式）完成後會簡化。實作計畫要先實測，並把結論寫進 `Merge-ready` 欄的 prompt。
-4. **欄位 prompt 在卡移入時是否自動啟動 session**：現有 A/B workflow 的行為要實測確認，Q workflow 的 `QA Run` 依賴這點。
-5. **嚴重度與路由的邊界**：S2 是否一律進 `Decide`，跑過幾輪後再調整。
+**已查證的問題（2026-10-07，讀 Kandev 原始碼 `~/Documents/sp1050107-zbot/kandev`、`docs/features.md` 與即時 API；尚未在即時環境實測，實測列在實作計畫第一個任務）**
+
+1. **agent 能否在 session 內開卡 → 可以。** Kandev 對一般 task session 自動提供 task 範圍的 MCP（server 名 `kandev`，Claude Code 內工具名形如 `mcp__kandev__create_task_kandev`）。可用工具含 `create_task_kandev`、`move_task_kandev`、`step_complete_kandev`、`list_tasks_kandev`、`list_workflow_steps_kandev`、`update_task_kandev`、`write_task_document_kandev`、`message_task_kandev`。`create_task_kandev` 的關鍵參數：`workflow_id`、`workflow_step_id`（指定落在哪一欄）、`title`、`prompt`（新 session 唯一的上下文）、`start_agent`（預設 true）、`repository_id`、`executor_profile_id`、`external_id`（同一 workspace 內相同值只會建一次，用來防重複建卡，BUG 編號就用它）。
+   - 注意：工具說明寫「只用於使用者要求的 Kandev 追蹤工作」。`QA-RUN` 卡的描述必須明講「使用者已要求為每個發現建立 BUG 卡」，否則 agent 可能拒絕。
+   - 備案（腳本依報告建卡）降為只在實測失敗時啟用。
+2. **欄位移入是否自動啟動 session → 只有欄位設了 `on_enter` 動作 `auto_start_agent` 才會。** 即時 API 顯示現有 A 流程所有欄位的 `events` 都是空的，所以 A/B 流程移卡**不會**自動啟動 agent，要手動啟動。Q workflow 要在建欄位時用 `events: {"on_enter": [...]}` 明確設定（`POST /workflow/steps` 接受 `events`、`agent_profile_id`、`wip_limit`）。
+3. **session 是否沿用 → 預設沿用。** `auto_start_agent` 以該 task 既有的 session 啟動，上下文會一路帶過各欄位。要「每欄一個乾淨 session」（也是「複驗不同於修復」的條件），要在該欄加 `reset_agent_context`（重啟 agent 子程序、換新 ACP session）。移卡時也可帶一次性交接指示（`instructions`）與 `reset_context` 選項（MCP `move_task_kandev` 的 entry options）。
+4. **欄位並行限制**：欄位有 `wip_limit`，可用在 `QA Run`、`Re-verify` 限制同時一個（其強制行為待實測）。
+
+**欄位的 Kandev 設定（落實上面結論）**
+
+| 欄位 | `on_enter` | 備註 |
+|---|---|---|
+| Backlog、Reported | 無 | 不啟動 agent |
+| QA Run | `auto_start_agent`、`reset_agent_context` | `wip_limit` 1 |
+| Triage (graph) | `auto_start_agent`、`reset_agent_context` | |
+| Decide (gstack) | `auto_start_agent`、`reset_agent_context` | |
+| Fix (worktree) | `auto_start_agent`、`reset_agent_context` | executor 用 `exec-worktree` |
+| Merge-ready | 無 | 人工關卡，不啟動 agent |
+| Re-verify (QA) | `auto_start_agent`、`reset_agent_context` | `wip_limit` 1；乾淨 session |
+| Done、Closed | `auto_start_agent`、`reset_agent_context` | `Done` 設 `complete_task_on_enter` |
+
+**仍待實測（實作計畫第一個任務）**
+1. 在即時 Kandev 以 `start_agent=false` 的拋棄式卡，確認 `claude-acp` session 真的有 `create_task_kandev` 可呼叫、不被權限政策擋下。
+2. 確認 `auto_start_agent` 在 REST 建立的欄位上，從 UI 拖卡與從 `move_task_kandev` 移卡兩種路徑都會觸發。
+3. 確認 `reset_agent_context` 之後 agent 讀不到上一欄的對話。
+4. 確認 `wip_limit` 的強制行為。
+
+**其餘開放問題**
+5. **圖的查詢工具**：見 §5.5。
+6. **後端合併後如何載入新碼**：Phase 1 的 BE 是容器內 `go run`（`dashboard-be-dev`），是否自動重載、是否要重建映像未驗證；Phase 2（混合式）完成後會簡化。實作計畫要先實測，並把結論寫進 `Merge-ready` 欄的 prompt。
+7. **嚴重度與路由的邊界**：S2 是否一律進 `Decide`，跑過幾輪後再調整。
 
 ## 9. 實作範圍（交給下一份計畫）
 
 - 擴充 `docs/agent-workflow/kandev_bootstrap.py`：目前所有 workflow 共用同一組 `COLUMNS`，要改成每條 workflow 自己的欄位；新增 `Q 品質迴圈` 與 §3 的欄位及 prompt；維持冪等，並更新 `test_kandev_bootstrap.py`（含 Q workflow 的欄位順序、`QA Run` 前置 `Backlog`、`Done` 的 `complete_task_on_enter`）。此檔為程式碼，走 worktree。
 - 建立 `docs/qa/` 骨架與模板：`runs/`、`events/`、`digest/`、`evidence/` 與 BUG 卡模板。
-- 解決 §8 開放問題 1–4。
+- 實測 §8「仍待實測」四項，並解決開放問題 5、6。
 - **端到端演練**：用一個刻意植入、可還原的小缺陷，從 `QA-RUN` 一路走到 `Done`，並強制一次複驗失敗以驗證退回與升級規則。驗收條件：每個欄位 session 只讀 `CLAUDE.md` 與卡；候選檔案包含真正需要改的檔案；產生事件檔與摘要檔；無祕密外洩；圖的新鮮度檢查會在不一致時提示。
 - 驗收通過後，把狀態與里程碑更新到 `MEMORY.md`，並在 `CLAUDE.md` 的 Kandev 段落補上 Q workflow 一行。
 
