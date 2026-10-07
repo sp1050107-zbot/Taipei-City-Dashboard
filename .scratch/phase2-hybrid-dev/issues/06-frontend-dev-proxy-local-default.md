@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately, after the P2-00 branch has been merged to `develop`).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Read first (nothing else is assumed):** `AGENTS.md`, `GLOSSARY.md`, `.scratch/phase2-hybrid-dev/spec.md`, `docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md`, `docs/decisions/0003-phase2-execution-engine-and-gates.md`, and the plan `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` (the working draft of the how; reference it by Task number, do not copy it). The plan is on `develop` once the P2-00 branch has been merged; if it is not there yet, stop and ask the owner.
 
@@ -12,8 +12,17 @@
 
 ## Acceptance criteria
 
-- [ ] A test fails if native mode targets the production site and passes with the local default.
-- [ ] A test proves `VITE_LOCAL_BE_URL` overrides the default.
-- [ ] A test proves container-mode proxy settings are unchanged.
-- [ ] The frontend dev server is configured for host port 8080 in native mode (spec: frontend 8080, backend 8088).
-- [ ] The change is committed in the worktree only.
+- [x] A test fails if native mode targets the production site and passes with the local default.
+- [x] A test proves `VITE_LOCAL_BE_URL` overrides the default.
+- [x] A test proves container-mode proxy settings are unchanged.
+- [x] The frontend dev server is configured for host port 8080 in native mode (spec: frontend 8080, backend 8088).
+- [x] The change is committed in the worktree only.
+
+## Answer
+
+Commit: see `git log -1` on branch feature/phase2-06 (sha recorded in the agent report).
+
+- RED: `node Taipei-City-Dashboard-FE/vite.server-config.test.mjs` -> `ERR_MODULE_NOT_FOUND: Cannot find module .../vite.server-config.js`.
+- GREEN: same command -> `PASS` (container mode unchanged incl. rewrite `/api/dev/x` -> `/api/v1/x`; native default target `http://localhost:8088`, port 8080, no `citydashboard.taipei` anywhere; `VITE_LOCAL_BE_URL` override honoured).
+- Native mode no longer has a production proxy or an opt-in for it (plan's `VITE_DEV_BACKEND=production` branch was dropped as outside the ticket); `/geo_server` is no longer proxied in native mode.
+- UNVERIFIED: `npm run build` / lint and the Vite dev server actually binding 8080 (no node_modules in worktree; not run). Port 8080 is proven only at the config-function level.
