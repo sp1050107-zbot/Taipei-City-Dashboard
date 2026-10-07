@@ -14,15 +14,15 @@
 - `db-sample-data/` 示範資料（`dashboard-demo.sql`、`dashboardmanager-demo.sql`）
 - `docs/superpowers/{specs,plans}/` spec 與計畫；`docs/decisions/` 決策記錄；`.planning/` GSD 狀態
 
-## 本機埠號（Phase 1 全容器）
-| 服務 | 主機埠 |
-|---|---|
-| 前端 (Vite) | 8080 |
-| 後端 (Gin) | 8088 |
-| nginx | 80 / 443 |
-| postgres-manager | 5432 |
-| qdrant | 6333 / 6334 |
-| pgAdmin | 8889 |
+## 本機埠號（Phase 1 全容器；見規則 8，nginx/pgAdmin 不啟動）
+| 服務 | 主機埠 | Phase 1 狀態 |
+|---|---|---|
+| 前端 (Vite) | 8080 | 啟動 |
+| 後端 (Gin) | 8088 | 啟動 |
+| postgres-manager | 5432 | 啟動 |
+| qdrant | 6333 / 6334 | 啟動 |
+| nginx | 80 / 443 | 未啟動（官方 compose 可配，Phase 1 不需要） |
+| pgAdmin | 8889 | 未啟動（官方 compose 可配，Phase 1 不需要） |
 
 ## 工作規則
 1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。例外（使用者 2026-10-07 同意）：`/implement-spec` 可自動開多個實作子 agent worktree，並由 merger 子 agent 合併到**同一條整合分支**（`feature/<spec-slug>`）；整合分支經 `/code-review` 與驗證通過後，才用一次本機 merge 回 `develop`。子 agent worktree 完成後要清理，且不得直接 merge 到 `develop`。

@@ -12,7 +12,7 @@
 
 ## 未決定
 - BE 首次 build（含 Hugging Face 下載）實際耗時與失敗率（Task 8 實測）。
-- 無專用 health 端點；就緒判斷暫用 `GET /api/v1/dashboard`（Task 8 實測確認）。
+- 無專用 health 端點；就緒判斷暫用 `GET /api/v1/dashboard/`（結尾斜線，否則回 301；Task 8 實測確認）。
 - `migrateDB` / `initDashboard` 重跑是否冪等（Task 7 實測）。
 - 地圖在無 `VITE_MAPBOXTILE`、無 `/geo_server` 時的實際降級表現（Task 9 實測）。
 

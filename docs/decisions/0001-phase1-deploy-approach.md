@@ -26,7 +26,7 @@
 - **以上 ruling 1–12 尚待使用者確認**（非互動審查的結果）。若不同意，回到 Merge-ready 前改計畫即可，目前沒有任何不可逆動作。
 - BE 首次 build 的實際耗時與是否被 Hugging Face 限速（Task 8 實測）。
 - Docker Desktop 8.3 GB 記憶體是否足夠同時 build + 運行（Task 8 實測；不夠時調高 Docker Desktop 記憶體，屬使用者操作）。
-- `GET /api/v1/dashboard/` 有 `LimitAPIRequests` 限流（`router.go:135`）；輪詢間隔 5 秒是否觸發限流，Task 8 實測。
+- ~~`GET /api/v1/dashboard/` 有 `LimitAPIRequests` 限流（`router.go:135`）；輪詢間隔 5 秒是否觸發限流~~ → **已結案**：讀碼確認 `global/consts.go:30,35` `DashboardLimitAPIRequestsTimes=20000`／`LimitRequestsDuration=60s`，5 秒一次（每分鐘 12 次）遠低於上限，Task 8 實測亦未見 429。
 - 外部審查（Outside Voice）未執行：使用者本輪不接 Codex；原生 Plan subagent 需要的 TaskOutput 工具在本 session 不可用。
 
 ## 下一步

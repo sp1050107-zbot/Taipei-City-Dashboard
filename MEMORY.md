@@ -31,7 +31,6 @@
 - 兩個 PostGIS 容器是 amd64 映像在 arm64 上以模擬執行（上游 tag 無 arm64 版）。
 - 就緒探測用 `GET /api/v1/dashboard/`（帶斜線）；不帶斜線是 301。`up` 後約 120 秒才回 200。
 - 前端 `index.html:31,39` 會把瀏覽資料送到上游的 GA（`G-0KD9XLZ7W3`），B 階段第一批客製候選。
-- 新 Kandev workspace 任務前綴也是 `KAN`，標題 `P1-xx` 辨識。
 - `task-done` 要在整合 checkout 執行，不要在 worktree 內跑（ledger 會寫到 worktree 自己的目錄）。
 - 防護 hook 禁止代理讀 `docker/.env`（任何 `.env`）；`mapbox-key.txt` 可在 shell 內拿來比對（例如檢查 diff 有沒有洩漏）但永不印出。需要管理員密碼請使用者自己查：`grep DASHBOARD_DEFAULT docker/.env`。
 

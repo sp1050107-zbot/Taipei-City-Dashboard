@@ -1,8 +1,21 @@
 #!/usr/bin/env python3
 """Verifies the live Kandev state created by kandev_bootstrap.py."""
 import sys, os
+import urllib.error
+from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(__file__))
 from kandev_bootstrap import call, main, WS_NAME, COLUMNS, WORKFLOWS, SEED_TASKS
+
+
+def test_unreachable_raises_friendly_error():
+    """Kandev down must raise SystemExit with a clear message, not an unhandled traceback."""
+    with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("Connection refused")):
+        try:
+            call("GET", "/workspaces")
+        except SystemExit as e:
+            assert "cannot reach Kandev" in str(e), f"unexpected message: {e}"
+        else:
+            raise AssertionError("expected SystemExit when Kandev is unreachable")
 
 
 def snapshot():
@@ -45,6 +58,7 @@ def test_idempotent():
 
 
 if __name__ == "__main__":
+    test_unreachable_raises_friendly_error()
     print("state:", test_state())
     test_idempotent()
     print("PASS")

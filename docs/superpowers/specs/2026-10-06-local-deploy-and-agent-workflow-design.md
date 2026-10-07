@@ -102,9 +102,9 @@
 1. **TCD-1 Clone 與接線**（local）：`gh repo clone sp1050107-zbot/Taipei-City-Dashboard ~/Taipei-City-Dashboard`，加 upstream；確認 `docker/.env` 被 `.gitignore` 忽略。
 2. **TCD-2 程式碼地圖**（GSD，local）：`gsd-onboard` / `gsd-map-codebase`，產出 `.planning/codebase/`。這是學習（A）的核心產出，且是後續所有 session 的共用背景。
 3. **TCD-3 決策**（gstack，local）：`/plan-eng-review` 審 Phase 1 部署計畫（埠衝突、AI 功能排除、BE image 風險），寫 `docs/decisions/0001-*.md`。
-4. **TCD-4 環境準備**（worktree）：檢查 80/443/8080/8088/5432/6333/8889 埠；`docker network create --driver=bridge --subnet=192.168.128.0/24 --gateway=192.168.128.1 br_dashboard`；由 `.env.template` 產生 `docker/.env`，本機專用密碼自行產生，**不寫進對話與 commit**。
-5. **TCD-5 起基礎設施與初始化**（worktree）：`docker compose -f docker-compose-db.yaml up -d` → `docker-compose-init.yaml`（npm ci、migrateDB、initDashboard）。
-6. **TCD-6 起應用**：`docker-compose.yaml up`（FE、BE、nginx）。Qdrant 一併啟動但不設 LLM 金鑰。
+4. **TCD-4 環境準備**（worktree）：檢查 80/443/8080/8088/5432/6333/8889 埠；`docker network create --driver=bridge --subnet=192.168.128.0/24 --gateway=192.168.128.1 br_dashboard`；由 `.env.template` 產生 `docker/.env`，本機專用密碼自行產生，**不寫進對話與 commit**。**更正（決策記錄 ruling 9）**：`preflight.sh` 取消，改為一行 `lsof` 迴圈只檢查 Phase 1 實際要用的 8080/8088/5432/6333/6334（不含 80/443/8889，因 nginx/pgAdmin 不啟動）。
+5. **TCD-5 起基礎設施與初始化**（worktree）：`docker compose -f docker-compose-db.yaml up -d` → `docker-compose-init.yaml`（npm ci、migrateDB、initDashboard）。**更正**：只起 `redis postgres-data postgres-manager qdrant`（ruling 4/5），不含 pgAdmin。
+6. **TCD-6 起應用**：`docker-compose.yaml up`（FE、BE、nginx）。Qdrant 一併啟動但不設 LLM 金鑰。**更正（ruling 3）**：Phase 1 不啟動 nginx；FE 由 Vite 直接在主機 8080 提供。
 7. **TCD-7 驗證**（gstack `/qa` + superpowers `verification-before-completion`）：依 §1 成功標準逐項取證（curl、DB 查表、瀏覽器截圖）。
 8. **TCD-8 補文件與記憶**：寫 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`，commit 到 `develop`；`gsd-extract-learnings`。
 

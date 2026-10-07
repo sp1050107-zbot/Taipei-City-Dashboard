@@ -78,6 +78,8 @@ def call(method, path, body=None):
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
         raise SystemExit(f"{method} {path} -> {e.code}: {e.read().decode()[:400]}")
+    except urllib.error.URLError as e:
+        raise SystemExit(f"{method} {path} -> cannot reach Kandev at {BASE} ({e.reason}). Is Kandev running?")
 
 
 def ensure_workspace():
