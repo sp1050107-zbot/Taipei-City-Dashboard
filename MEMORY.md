@@ -4,6 +4,7 @@
 - [設計 spec](docs/superpowers/specs/2026-10-06-local-deploy-and-agent-workflow-design.md) — 目標、三層分工、worktree 紀律、Phase 1/2
 - [Phase 1 計畫](docs/superpowers/plans/2026-10-06-phase1-local-deploy.md) — 10 個 Task，對應 Kandev 種子 task P1-01…P1-08
 - [QA 品質迴圈 spec](docs/superpowers/specs/2026-10-07-qa-loop-workflow-design.md) — Q workflow（QA→bug→Fix→複驗→摘要檔）、知識圖用法；草案，待審閱
+- [QA 品質迴圈計畫](docs/superpowers/plans/2026-10-07-qa-loop-workflow.md) — 7 個 Task：Kandev 實測、圖查詢工具、docs/qa 骨架、Q 欄位定義、套用、兩輪演練；待審閱，尚未執行
 
 - [Phase 1 驗收證據](docs/agent-workflow/evidence/phase1-verification.md) — 逐項實測輸出、QA 截圖、已知差異
 - [Phase 1 學習萃取](.planning/codebase/LEARNINGS-phase1.md) — 決策/教訓/模式/意外
