@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately, after the P2-00 branch has been merged to `develop`).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Read first (nothing else is assumed):** `AGENTS.md`, `GLOSSARY.md`, `.scratch/phase2-hybrid-dev/spec.md`, `docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md`, `docs/decisions/0003-phase2-execution-engine-and-gates.md`, and the plan `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` (the working draft of the how; reference it by Task number, do not copy it). The plan is on `develop` once the P2-00 branch has been merged; if it is not there yet, stop and ask the owner.
 
@@ -12,7 +12,17 @@
 
 ## Acceptance criteria
 
-- [ ] A test creates a throwaway local environment file name and proves git ignores it, and fails before the gitignore change.
-- [ ] The existing ignore entries for the other environment files are unchanged.
-- [ ] The test never uses or prints a real token.
-- [ ] The change is committed in the worktree only.
+- [x] A test creates a throwaway local environment file name and proves git ignores it, and fails before the gitignore change.
+- [x] The existing ignore entries for the other environment files are unchanged.
+- [x] The test never uses or prints a real token.
+- [x] The change is committed in the worktree only.
+
+## Answer
+
+Commit: SHA_PLACEHOLDER (branch feature/phase2-07).
+
+- Added to root .gitignore: FE .env.local, .env.development.local, .env.production.local, .env.test.local, and the .env.*.local glob. Existing entries untouched (diff is additions only).
+- Test: `Taipei-City-Dashboard-FE/test-env-local-ignored.sh` (added with `git add -f`; names only, throwaway empty file removed by trap, no token used).
+- RED before change: four FAIL lines (.env.local, .env.development.local, .env.production.local, .env.test.local NOT gitignored), plus throwaway file in git status; exit 1.
+- GREEN after change: `PASS`, exit 0. Existing env entries still ignored (checked in the same test).
+- Not run: docker, push. Nothing UNVERIFIED for this ticket.
