@@ -22,7 +22,7 @@
 - `MOVE_WHILE_RUNNING` = **no-issue**（隔離實驗情境）— 每次移卡都回 200，移卡前 session 皆為 WAITING_FOR_INPUT。session 為 RUNNING 時的移卡見 `AGENT_CAN_CREATE_AND_MOVE`：被延後到回合結束。
 - `AUTO_START_VIA_REST_MOVE` = **yes（帶 profile 時）** — 帶 profile 的卡移入 b 後有 session 與回合；無 profile 卡移入 b：無 session、metadata `auto_start_failed=true`、state `SCHEDULING`。
 - `REST_CREATE_NEEDS_AGENT_PROFILE` = **yes（僅一個實驗的觀察，見未決定）** — 一張在 auto 欄 a 建立、沒帶 `agent_profile_id` 的卡：state `CREATED`、15 秒後 0 個 session，之後移入 b 也只得到 `auto_start_failed=true`。其他無 profile 卡後來也有了 session，來源不明（見未決定），所以「沒 profile 就一定沒 agent」不是乾淨的結論。
-- `CREATE_IN_AUTO_STEP_STARTS_AGENT` = **yes（帶 profile 時，多數情況）／no（無 profile 的實驗卡）** — 有 session 卡建立後 0.1 秒內有 session；無 profile 實驗卡建立後沒有。但無 session 卡（帶 profile、在 a 欄建立）卻到移卡才出現 session，不一致，原因未查明。
+- `CREATE_IN_AUTO_STEP_STARTS_AGENT` = **yes（帶 profile 時，多數情況）／no（無 profile 的實驗卡）** — 有 session 卡建立後 0.1 秒內有 session；無 profile 實驗卡建立後沒有（另見未決定：三張無 profile 卡後來也有 session，來源不明）。但無 session 卡（帶 profile、在 a 欄建立）卻到移卡才出現 session，不一致，原因未查明。
 - `AGENT_CAN_CREATE_AND_MOVE` = **yes** — 工具名為 `mcp__kandev__{list_workflow_steps,create_task,move_task}_kandev`。第 2 次 MCP 卡（第一人稱擁有者措辭）建立了子卡（c 欄、state `CREATED`、external_id `ZZ-PROBE-1`、無 session，`start_agent=false` 被遵守），並把自己移到 c；session 為 RUNNING 時移卡的 disposition 是 `deferred`，回合結束才生效；`prompt` 成為一次性進入指令。第 1 次 MCP 卡（第三人稱措辭）被 agent 拒絕並要求確認，未呼叫任何工具，也沒有權限錯誤。
 - `WIP_LIMIT_BEHAVIOUR` = **ignored（未強制）** — 在 `wip_limit=1` 的 c 欄，超額建立與移入都被接受，無錯誤也無警告欄位，卡片確實都在 c。唯一訊號是超額卡片的欄位 `wip_admitted=false`（第一張為 true）；進入 c 沒有啟動 session。
 - `AUTO_START_VIA_UI_MOVE` = **unverified** — 內建瀏覽器開啟 Kandev 後被首次使用的新手引導對話框（AI 代理程式設定）擋住；為避免更動應用設定而依 3 分鐘上限跳過。
