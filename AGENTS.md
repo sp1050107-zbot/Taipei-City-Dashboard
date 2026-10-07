@@ -25,15 +25,20 @@
 | pgAdmin | 8889 |
 
 ## 工作規則
-1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。
-2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`docs/`、`.planning/`、`.ua/`（Understand-Anything 產出的知識圖，非程式碼，使用者 2026-10-07 同意）可直接在整合 checkout commit。
+1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。例外（使用者 2026-10-07 同意）：`/implement-spec` 可自動開多個實作子 agent worktree，並由 merger 子 agent 合併到**同一條整合分支**（`feature/<spec-slug>`）；整合分支經 `/code-review` 與驗證通過後，才用一次本機 merge 回 `develop`。子 agent worktree 完成後要清理，且不得直接 merge 到 `develop`。
+2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`GLOSSARY.md`、`docs/`（含 `docs/agents/`、`docs/decisions/`）、`.planning/`、`.scratch/`（本機 tracker 的 spec 與票，見「追蹤與領域文件」）、`.ua/`（Understand-Anything 產出的知識圖，非程式碼，使用者 2026-10-07 同意）可直接在整合 checkout commit。`.scratch/` 內容同樣適用規則 4（不得放祕密）。
 3. 不 `git push`、不對 upstream 發 PR，除非使用者明確指示。
 4. 祕密：`mapbox-key.txt`、`docker/.env` 永不 commit、永不印出。commit 前用 token 的完整字串比對 staged diff（只比對，不印出）。
 5. 不設定任何 LLM/AI 服務金鑰（TWCC/OpenAI/Gemini）。注意：BE 啟動時**一定會**載入本地嵌入模型（`intfloat/multilingual-e5-base` 的 ONNX 版）與 onnxruntime，缺任何一個就 `log.Fatalf` 結束；所以 Docker build 的 `model_export` 階段是必經，不能略過。
-6. worktree 只看得到已 commit 的內容；交接檔先 commit 再派工。
+6. worktree 只看得到已 commit 的內容；交接檔先 commit 再派工。`/handoff` 預設把檔案寫到 `$TMPDIR`（worktree 與其他 harness 看不到），所以：用 `/handoff` 產生後，要把檔案複製到 `.planning/handoffs/<YYYY-MM-DD>-<topic>.md`（保持五個標頭）並 commit，再把這個**已 commit 的路徑**交給下一個 session / Kandev 任務；`$TMPDIR` 的檔案不得當作交接依據。
 7. docker compose 只在整合 checkout（`~/Taipei-City-Dashboard/docker`）執行：compose 檔用固定 `container_name`，同一台機器只能有一組堆疊；worktree / Kandev task 不得跑 compose。
 8. Phase 1 只啟動 `redis postgres-data postgres-manager qdrant dashboard-fe dashboard-be`；不啟動 nginx、pgAdmin、`vector-db-upgrade`（見 `docs/decisions/0001-phase1-deploy-approach.md`）。
 9. 資料初始化是一次性動作，不重跑（init 會吞錯、重跑可能重複寫入）；要重做就刪 `postgres_data` / `postgres_manager_data` volume。
+
+## 追蹤與領域文件（使用者 2026-10-07 決定）
+- **票（tracker）**：Kandev 是任務看板；spec 與票的**內容**是本機 markdown：`.scratch/<feature>/spec.md`、`.scratch/<feature>/issues/<NN>-<slug>.md`（阻擋關係寫在票內 `Blocked by:`）。一張票對應一張 Kandev 卡，卡片描述只放該票檔案路徑，不複製內容，避免兩處不一致。
+- **ADR 與決策**：只放 `docs/decisions/`，不建立 `docs/adr/`；`GLOSSARY.md` 放 repo 根目錄。同一個決定只寫在一處，其他地方用路徑引用。
+- 這些位置要在 `docs/agents/*.md`（由 `/setup-matt-pocock-skills` 產生）中同樣設定，讓 matt skills 與本檔一致。
 
 ## 三層分工與交接
 - gstack＝決策與把關（`/office-hours`、`/plan-eng-review`、`/review`、`/qa`、`/cso`）
