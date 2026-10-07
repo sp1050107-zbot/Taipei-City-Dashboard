@@ -73,3 +73,6 @@ Taipei-City-Dashboard-DE/docker/prod/.env
 *.py[cod]
 
 *.env
+# Understand-Anything generated graph (large, rebuildable with /understand)
+.ua/knowledge-graph.json
+.ua/fingerprints.json

@@ -21,7 +21,7 @@
 3. 新 session 用 `gsd-resume-work` 接續。
 
 ## 知識圖（Understand-Anything）
-- 圖在 `.ua/knowledge-graph.json`；`/understand` 建圖、`/understand-dashboard` 看圖。
+- 圖在 `.ua/knowledge-graph.json`（本機產物，已 gitignore、不入版控）；`/understand` 建圖、`/understand-dashboard` 看圖。
 - 每次 `/understand` 之後要補後端路由與前端 import：`node ~/Understand-Anything/scripts/augment-gin-vue.mjs ~/Taipei-City-Dashboard`（可重跑）。
 - 圖看「誰呼叫誰、改動影響哪裡」；`.planning/codebase/` 看「為什麼、有什麼風險」。
 

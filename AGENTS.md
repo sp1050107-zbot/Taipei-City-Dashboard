@@ -26,7 +26,7 @@
 
 ## 工作規則
 1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。例外（使用者 2026-10-07 同意）：`/implement-spec` 可自動開多個實作子 agent worktree，並由 merger 子 agent 合併到**同一條整合分支**（`feature/<spec-slug>`）；整合分支經 `/code-review` 與驗證通過後，才用一次本機 merge 回 `develop`。子 agent worktree 完成後要清理，且不得直接 merge 到 `develop`。
-2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`GLOSSARY.md`、`docs/`（含 `docs/agents/`、`docs/decisions/`）、`.planning/`、`.scratch/`（本機 tracker 的 spec 與票，見「追蹤與領域文件」）、`.ua/`（Understand-Anything 產出的知識圖，非程式碼，使用者 2026-10-07 同意）可直接在整合 checkout commit。`.scratch/` 內容同樣適用規則 4（不得放祕密）。
+2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`GLOSSARY.md`、`docs/`（含 `docs/agents/`、`docs/decisions/`）、`.planning/`、`.scratch/`（本機 tracker 的 spec 與票，見「追蹤與領域文件」）、`.ua/`（Understand-Anything 的設定；大檔 `knowledge-graph.json` 與 `fingerprints.json` 可用 `/understand` 重建，已列入 `.gitignore`，不入版控，使用者 2026-10-08 決定）可直接在整合 checkout commit。`.scratch/` 內容同樣適用規則 4（不得放祕密）。
 3. 不 `git push`、不對 upstream 發 PR，除非使用者明確指示。
 4. 祕密：`mapbox-key.txt`、`docker/.env` 永不 commit、永不印出。commit 前用 token 的完整字串比對 staged diff（只比對，不印出）。
 5. 不設定任何 LLM/AI 服務金鑰（TWCC/OpenAI/Gemini）。注意：BE 啟動時**一定會**載入本地嵌入模型（`intfloat/multilingual-e5-base` 的 ONNX 版）與 onnxruntime，缺任何一個就 `log.Fatalf` 結束；所以 Docker build 的 `model_export` 階段是必經，不能略過。
