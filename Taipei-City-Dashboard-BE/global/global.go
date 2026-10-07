@@ -42,7 +42,8 @@ type QdrantConfig struct {
 }
 
 type LMConfig struct {
-	ModelPath    string
+	ModelPath         string
+	SharedLibraryPath string
 }
 
 type AIConfig struct {
@@ -131,7 +132,8 @@ var (
 	}
 
 	LM = LMConfig{
-		ModelPath: getEnv("LM_MODEL_PATH", "/opt/lm_model/onnx-e5/"),
+		ModelPath:         getEnv("LM_MODEL_PATH", "/opt/lm_model/onnx-e5/"),
+		SharedLibraryPath: getEnv("ORT_LIBRARY_PATH", "/usr/lib/libonnxruntime.so"),
 	}
 
 	AI = AIConfig{

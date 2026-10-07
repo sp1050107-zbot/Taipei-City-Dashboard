@@ -96,7 +96,7 @@ func InitLmSession() *ort.DynamicSession[int64, float32] {
 	LMConfig := global.LM
 
 	// 1) ONNX Runtime 初始化
-	ort.SetSharedLibraryPath("/usr/lib/libonnxruntime.so") // 設定共享函式庫路徑
+	ort.SetSharedLibraryPath(LMConfig.SharedLibraryPath) // 容器內預設 /usr/lib/libonnxruntime.so；host 原生執行用 ORT_LIBRARY_PATH 覆寫
 
 	if err := ort.InitializeEnvironment(); err != nil {
 		log.Fatalf("InitializeEnvironment error: %v", err)
