@@ -16,7 +16,7 @@
 - [x] A test proves the token is never written to standard output or error.
 - [x] The generated file is ignored by git (relies on ticket 07).
 - [x] The Mapbox key file itself is read only by the generator; no agent reads or prints it.
-- [ ] A secret scan of the staged diff against the real key is clean (compare, never print).
+- [x] A secret scan of the staged diff against the real key is clean (compare, never print). Done by the orchestrator: exact-string comparison against the real key found nothing; the only pattern hit is the test's fake sentinel.
 - [x] The change is committed in the worktree only.
 
 ## Answer
