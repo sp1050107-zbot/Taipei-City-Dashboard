@@ -705,7 +705,10 @@ for h in '目標' '已決定' '未決定' '下一步' '關鍵檔案路徑' '嚴�
   grep -q "$h" docs/qa/templates/bug-card.md || fail "bug-card.md lacks: $h"
 done
 for s in S1 S2 S3 S4; do grep -q "$s" docs/qa/README.md || fail "README lacks severity $s"; done
-for h in '今日巡檢範圍與結果' '新增 bug' '已修並複驗通過' '退回中' '需要你決定' '知識圖是否過期'; do
+for h in '責任歸屬' 'env-not-ready' 'ESCALATED' '待你確認的 Closed' '20 分鐘'; do
+  grep -q "$h" docs/qa/README.md || fail "README lacks ownership item: $h"
+done
+for h in '今日巡檢範圍與結果' '新增 bug' '已修並複驗通過' '退回中' '需要你決定' '待你確認的 Closed' '疑似停滯的卡' '知識圖是否過期'; do
   grep -q "$h" docs/qa/templates/digest.md || fail "digest.md lacks section: $h"
 done
 for e in found triaged escalated fixed-merged verified-pass verified-fail closed graph-stale env-not-ready; do
@@ -747,6 +750,21 @@ Expected: `FAIL: docs/qa/README.md missing`
 | S4 | 外觀、文字、非功能性問題 | 錯字、對齊 |
 
 路由：S3/S4 且候選檔案落在單一層 → 直接 `Fix`；S1/S2 或跨層 → 先 `Decide`。
+
+## 責任歸屬（迴圈產出的問題由誰處理）
+
+| 迴圈產出的情況 | 誰處理 | 說明 |
+|---|---|---|
+| 一般 bug（S3/S4、單一層） | Triage → Fix → Re-verify 各欄 agent | 你在 `Merge-ready` 核准合併 |
+| S1/S2 或跨層 bug | 同上，另加 `Decide` agent | 合併一樣由你核准 |
+| 複驗連續失敗（`ESCALATED`） | **你** | agent 在 `Decide` 停手，不再移動卡 |
+| 服務未就緒（`env-not-ready`） | **你** | compose 只能在整合 checkout 跑，Kandev 任務不得跑 compose（`AGENTS.md` 規則 7），agent 無法重啟服務 |
+| 知識圖過期（`graph-stale`） | **你** | 執行 `/understand` 增量更新與 `augment-gin-vue.mjs` |
+| 卡片停滯 | **你** | 摘要檔列出「在自動啟動欄位超過 20 分鐘沒有 session 活動的卡」，你決定喚醒或停止 |
+| `Closed`（重複、不修、無法重現） | Triage agent 判定，**你複核** | 摘要檔列出「待你確認的 Closed」與原因，你可把卡移回 `Reported` |
+| 上游、資料來源、外部帳號類問題 | **你** | agent 只標 `Closed` 並寫原因；是否向上游回報由你決定（`AGENTS.md` 規則 3 預設不發 PR） |
+
+原則：agent 能獨立完成且可逆的事由 agent 做；會改變共享狀態或不可逆的事（合併、重啟服務、對外回報、關閉卡的最終確認）由你做。
 
 ## 迴圈規則
 
@@ -835,6 +853,12 @@ Expected: `FAIL: docs/qa/README.md missing`
 | 編號 | 退回次數 | 原因 |
 |---|---|---|
 ## 需要你決定
+（依序：環境未就緒需要你重啟服務、S1 bug、ESCALATED 卡、待核准合併）
+## 待你確認的 Closed
+| 編號 | 原因 | 判定的 agent 角色 |
+|---|---|---|
+## 疑似停滯的卡
+（在自動啟動欄位超過 20 分鐘沒有 session 活動的卡）
 ## 知識圖是否過期
 ```
 
@@ -1169,7 +1193,7 @@ Expected: 新 session（不記得修復過程）執行重現步驟與影響範�
 
 - [ ] **Step 5b: 彙整摘要檔（驗證 spec §7 的 PM 摘要）**
 
-建一張 `PM-DIGEST-1` 卡於 `Backlog`，描述寫：「請彙整今天 docs/qa/events/ 的事件檔與 Q 品質迴圈所有卡的狀態，依 docs/qa/templates/digest.md 寫成 docs/qa/digest/<今天日期>.md 並 commit 到 develop。不要建立或修改任何其他卡。」手動啟動該卡的 agent（`Backlog` 沒有自動啟動），Expected: 產生含六個段落的摘要檔，`需要你決定` 段落列出任何 `graph-stale` 或升級項目，且內容與事件檔相符。若實測覺得每次都要手動建卡太麻煩，把「摘要彙整」併進 `QA Run` 欄 prompt 的最後一步，另開變更，不在本計畫範圍。
+建一張 `PM-DIGEST-1` 卡於 `Backlog`，描述寫：「請彙整今天 docs/qa/events/ 的事件檔與 Q 品質迴圈所有卡的狀態，依 docs/qa/templates/digest.md 寫成 docs/qa/digest/<今天日期>.md 並 commit 到 develop。不要建立或修改任何其他卡。」手動啟動該卡的 agent（`Backlog` 沒有自動啟動），Expected: 產生含八個段落的摘要檔（含「待你確認的 Closed」「疑似停滯的卡」），`需要你決定` 段落列出任何 `graph-stale` 或升級項目，且內容與事件檔相符。若實測覺得每次都要手動建卡太麻煩，把「摘要彙整」併進 `QA Run` 欄 prompt 的最後一步，另開變更，不在本計畫範圍。
 
 **演練 B：退回與升級規則**
 

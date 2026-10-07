@@ -111,6 +111,23 @@ BUG:   Reported ─▶ Triage ─┬─(S3/S4 且單一層)───────
 - 寫一個事件檔（§7）。
 - `Done` 額外檢查知識圖是否過期（§5.4），過期就在事件檔註明並提示使用者更新。
 
+### 4.7 責任歸屬（迴圈產出的問題由誰處理）
+
+你（看板擁有者）是唯一的人類角色，守三個關卡：合併、升級項目、`Closed` 複核。迴圈處理不了的事一律回到你，下表為準（使用者 2026-10-07 同意）：
+
+| 迴圈產出的情況 | 誰處理 | 說明 |
+|---|---|---|
+| 一般 bug（S3/S4、單一層） | Triage → Fix → Re-verify 各欄 agent | 你在 `Merge-ready` 核准合併 |
+| S1/S2 或跨層 bug | 同上，另加 `Decide` agent | 合併一樣由你核准 |
+| 複驗連續失敗（`ESCALATED`） | **你** | agent 在 `Decide` 停手，不再移動卡 |
+| 服務未就緒（`env-not-ready`） | **你** | compose 只能在整合 checkout 跑，Kandev 任務不得跑 compose（`AGENTS.md` 規則 7），agent 無法重啟服務 |
+| 知識圖過期（`graph-stale`） | **你** | 執行 `/understand` 增量更新與 `augment-gin-vue.mjs` |
+| 卡片停滯 | **你** | 摘要檔列出「在自動啟動欄位超過 20 分鐘沒有 session 活動的卡」，你決定喚醒或停止 |
+| `Closed`（重複、不修、無法重現） | Triage agent 判定，**你複核** | 摘要檔列出「待你確認的 Closed」與原因，你可把卡移回 `Reported` |
+| 上游、資料來源、外部帳號類問題 | **你** | agent 只標 `Closed` 並寫原因；是否向上游回報由你決定（`AGENTS.md` 規則 3 預設不發 PR） |
+
+原則：agent 能獨立完成且可逆的事（分流、修復、複驗、寫事件）由 agent 做；會改變共享狀態或不可逆的事（合併、重啟服務、對外回報、關閉卡的最終確認）由你做。目前沒有自動喚醒停滯卡的機制，所以靠摘要檔讓你看見。
+
 ## 5. 知識圖的使用規則
 
 圖在 `.ua/knowledge-graph.json`；每次 `/understand` 增量更新後要執行 `node ~/Understand-Anything/scripts/augment-gin-vue.mjs ~/Taipei-City-Dashboard`（見 `CLAUDE.md`）。
@@ -173,8 +190,10 @@ BUG 卡的描述就是交接檔，標頭沿用 `目標 / 已決定 / 未決定 /
 2. 新增 bug（編號、嚴重度、一句話）
 3. 已修並複驗通過
 4. 退回中（含次數）
-5. **需要你決定**（升級項目、待核准合併）
-6. 知識圖是否過期
+5. **需要你決定**（依序：環境未就緒需要你重啟服務、S1 bug、`ESCALATED` 卡、待核准合併）
+6. 待你確認的 Closed（編號、原因、判定的 agent 角色）
+7. 疑似停滯的卡（在自動啟動欄位超過 20 分鐘沒有 session 活動）
+8. 知識圖是否過期
 
 事件檔與摘要檔都是文件，可直接 commit 到 `develop`（`AGENTS.md` 規則 2）。`MEMORY.md` 不逐日記錄，只在里程碑時更新。
 
