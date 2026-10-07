@@ -20,10 +20,10 @@
 
 ## Answer
 
-Committed in this worktree (see `git log -1`). Added `LMConfig.SharedLibraryPath` read from `ORT_LIBRARY_PATH` (default `/usr/lib/libonnxruntime.so`) in `global/global.go`; `InitLmSession` in `app/models/qdrant.go` now uses it. Test `global/global_test.go` re-runs the test binary as a child process so the real package-level reader produces the value.
+Commit: `9523e9ee`. Added `LMConfig.SharedLibraryPath` read from `ORT_LIBRARY_PATH` (default `/usr/lib/libonnxruntime.so`) in `global/global.go`; `InitLmSession` in `app/models/qdrant.go` now uses it. Test `global/global_test.go` re-runs the test binary as a child process so the real package-level reader produces the value.
 
 - RED: `LM.SharedLibraryPath undefined` build failure before the change. GREEN: both `TestLMConfigSharedLibraryPath*` pass. Mutation check (default changed to `/x`) turned the Default test red, then reverted.
-- `go build ./...` OK; `go test -vet=off ./...` all pass (isochrone packages + global); same isochrone tests passed on the base.
+- `go build ./...` and `go test -vet=off ./global/...` pass with host Go 1.27.1 and GOTOOLCHAIN=local; this proves compilation only, running the backend remains UNVERIFIED.
 - Only the library path line changed; DB, Redis, model and tokenizer startup requirements are untouched.
 - Finding for final review (pre-existing, not fixed): `go vet` reports a non-constant format string in `logs.FInfo` call in `global/global.go` (~line 172), so plain `go test` fails its vet step; tests were run with `-vet=off`.
 - UNVERIFIED: the backend was not started (no ONNX Runtime/model on this machine); ticket 10 verifies startup. The macOS `.dylib` path was only checked as a string, not loaded.

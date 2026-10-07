@@ -27,4 +27,4 @@ Added `Taipei-City-Dashboard-FE/make-dev-env.sh` (key file from argument, `$MAPB
 - RED: first run failed (generator not found). GREEN: `Taipei-City-Dashboard-FE/test-make-dev-env.sh` prints PASS; `test-env-local-ignored.sh` still PASS and `git check-ignore .env.local` confirms the output name is ignored (ticket 07).
 - The real `mapbox-key.txt` was never read, printed or used; the generator was never run against it.
 - Secret scan of the staged diff against the real key: done by orchestrator (box left unticked).
-- Commit: see `git log -1` on branch `feature/phase2-08`.
+- Commit: `2d880f30`.

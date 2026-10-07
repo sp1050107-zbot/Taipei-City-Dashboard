@@ -22,7 +22,7 @@
 
 ## Answer
 
-Resolved in one docs commit on `feature/phase2-01` (subject: `docs(plan): revise Phase 2 plan to match spec`; the sha is in `git log`). Only `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` and this ticket changed.
+Resolved in one docs commit, `c8bddaf1` (`docs(plan): revise Phase 2 plan to match spec`). Only `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` and this ticket changed.
 
 What changed in the plan:
 - Task 4: owner-approval gate (`ORT_DOWNLOAD_APPROVED=yes`, file name and source printed, no network call otherwise) and SHA256 gate (`onnxruntime.sha256`, mismatch extracts nothing); arm64 only. The new test was extracted from the plan and run against the plan's script in a scratch sandbox with stubs: `PASS (idempotent skip, approval gate, SHA256 gate verified)`.

@@ -22,7 +22,7 @@
 
 ## Answer
 
-Implemented in `Taipei-City-Dashboard-BE/` (see `git log -1`): `setup-native-model.sh`, `test-setup-native-model.sh`, `onnxruntime.sha256`.
+Implemented in `Taipei-City-Dashboard-BE/` (commit `4f5b700c`): `setup-native-model.sh`, `test-setup-native-model.sh`, `onnxruntime.sha256`.
 
 - Approval gate: without `ORT_DOWNLOAD_APPROVED=yes` the script prints file name and source URL, makes no network call, exits 2 (test case 2).
 - SHA256 gate: mismatch deletes the download, extracts nothing, exits 4 (case 3). Missing, empty or placeholder digest file refuses before any download (cases 5, 6).
