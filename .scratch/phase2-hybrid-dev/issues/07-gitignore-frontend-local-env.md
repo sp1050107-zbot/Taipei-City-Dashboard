@@ -19,7 +19,7 @@
 
 ## Answer
 
-Commit: b109acdc (branch feature/phase2-07).
+Commit: `b109acdc` (follow-up `af48ee09`).
 
 - Added to root .gitignore: FE .env.local, .env.development.local, .env.production.local, .env.test.local, and the .env.*.local glob. Existing entries untouched (diff is additions only).
 - Test: `Taipei-City-Dashboard-FE/test-env-local-ignored.sh` (added with `git add -f`; names only, throwaway empty file removed by trap, no token used).

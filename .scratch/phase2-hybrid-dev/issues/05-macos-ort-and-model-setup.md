@@ -12,7 +12,7 @@
 
 ## Acceptance criteria
 
-- [x] Before downloading anything the step tells the owner the file name, source and size and waits for explicit approval; a test proves it does not download without approval.
+- [x] Before downloading anything the step tells the owner the file name, source and where to read the size and waits for explicit approval; a test proves it does not download without approval.
 - [x] The download comes from the official release for the pinned version only, and the SHA256 is verified before the library is used; a corrupted archive is rejected.
 - [x] The embedding model files (`model.onnx` and `tokenizer.json`) are obtained from the built dev image, not by re-running the Python export on the Mac.
 - [x] When the library and model already exist the step performs no download and no image access (idempotent).
@@ -22,9 +22,9 @@
 
 ## Answer
 
-Implemented in `Taipei-City-Dashboard-BE/` (see `git log -1`): `setup-native-model.sh`, `test-setup-native-model.sh`, `onnxruntime.sha256`.
+Implemented in `Taipei-City-Dashboard-BE/` (commit `4f5b700c`): `setup-native-model.sh`, `test-setup-native-model.sh`, `onnxruntime.sha256`.
 
-- Approval gate: without `ORT_DOWNLOAD_APPROVED=yes` the script prints file name and source URL, makes no network call, exits 2 (test case 2).
+- Approval gate: without `ORT_DOWNLOAD_APPROVED=yes` the script prints file name, source URL and a line saying the size is not known offline and must be read from the release page (URL printed), makes no network call, exits 2 (test case 2).
 - SHA256 gate: mismatch deletes the download, extracts nothing, exits 4 (case 3). Missing, empty or placeholder digest file refuses before any download (cases 5, 6).
 - `onnxruntime.sha256` is committed as the placeholder `UNSET`, which the script rejects (case 7). **The real digest and the download size are UNVERIFIED**: the owner must paste the official digest from the release page at approval time. Nothing was downloaded or computed.
 - Model: `model.onnx` and `tokenizer.json` are copied from the `dashboard-be-dev:latest` image via `docker create`/`cp`/`rm` (path `/opt/lm_model/onnx-e5` confirmed from the Dockerfile). Only tested with a stub docker; real image access UNVERIFIED.

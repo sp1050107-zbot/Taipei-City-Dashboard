@@ -82,8 +82,11 @@ ALLOWED="DB_MANAGER_PORT GIN_PORT GOTOOLCHAIN LM_MODEL_PATH ORT_LIBRARY_PATH RED
 [ "$NEW" = "$ALLOWED" ] || fail "unexpected new variables: [$NEW] (allowed [$ALLOWED])"
 
 # 2. Secrets never reach stdout or stderr (success and failure paths).
-run "$WORK/miss.out" "$WORK/miss.err" \
-  ORT_LIBRARY_PATH="$WORK/nope/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/" && true
+if run "$WORK/miss.out" "$WORK/miss.err" \
+  ORT_LIBRARY_PATH="$WORK/nope/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/"; then
+  fail "failure-path run unexpectedly succeeded"
+fi
+grep -q "not found" "$WORK/miss.err" || fail "failure-path run did not reach the missing-library check"
 for f in ok.out ok.err miss.out miss.err; do
   if grep -qE "$SENTINEL_JWT|$SENTINEL_PW" "$WORK/$f"; then fail "secret leaked in $f"; fi
 done
@@ -125,6 +128,12 @@ if [ ! -f "$PWD/onnxruntime/lib/libonnxruntime.dylib" ]; then
   grep -q "$PWD/onnxruntime/lib/libonnxruntime.dylib" "$WORK/e.err" || fail "default library path wrong"
 fi
 grep -q 'lm_model/onnx-e5' dev-native.sh || fail "default model path should be lm_model/onnx-e5"
+
+# 8. Error text must not cite a path that does not exist in the repo.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+for p in $(grep -E 'echo "dev-native' dev-native.sh | grep -oE '[A-Za-z0-9_./-]+/[A-Za-z0-9_.-]+\.(sh|md|template|py)'); do
+  [ -e "$REPO_ROOT/$p" ] || [ -e "$p" ] || fail "error text cites a path that does not exist: $p"
+done
 
 # 7. No container commands.
 if grep -vE '^\s*#' dev-native.sh | grep -qE 'docker[ -]compose|docker +(run|compose|start|up)'; then

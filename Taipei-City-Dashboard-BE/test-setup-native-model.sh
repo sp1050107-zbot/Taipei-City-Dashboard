@@ -21,6 +21,7 @@ fresh() { # fresh <case>: empty sandbox with the script and stubs first on PATH
 echo "$*" >> "$DOCKER_LOG"
 if [ "$1" = "create" ]; then echo stubcid; fi
 if [ "$1" = "cp" ]; then
+  [ -z "${DOCKER_CP_FAIL:-}" ] || exit 1
   dest="${@: -1}"; mkdir -p "$dest"; touch "$dest/model.onnx" "$dest/tokenizer.json"
 fi
 exit 0
@@ -52,11 +53,14 @@ if OUT=$(run ./setup-native-model.sh 2>&1); then fail "ran without approval"; fi
 [ ! -s "$D/curl.log" ] || fail "curl called without approval"
 echo "$OUT" | grep -q "onnxruntime-osx-arm64-1.23.2.tgz" || fail "file name not shown"
 echo "$OUT" | grep -q "github.com/microsoft/onnxruntime" || fail "source not shown"
+echo "$OUT" | grep -qi "size is not known offline" || fail "size notice not shown"
+echo "$OUT" | grep -q "github.com/microsoft/onnxruntime/releases/tag/v1.23.2" || fail "release page URL not shown"
 
 # 3: approved, SHA mismatch -> non-zero, nothing extracted
 fresh mismatch
-echo "deadbeef" > "$D/onnxruntime.sha256"
-if run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null 2>&1; then fail "accepted mismatching archive"; fi
+printf '%064d\n' 0 > "$D/onnxruntime.sha256"
+rc=0; run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null 2>&1 || rc=$?
+[ "$rc" = 4 ] || fail "mismatching archive: expected exit 4, got $rc"
 [ ! -e "$D/onnxruntime/lib/libonnxruntime.dylib" ] || fail "extracted despite mismatch"
 
 # 4: approved, SHA matches -> library and model + tokenizer installed
@@ -67,6 +71,27 @@ run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null
 [ -f "$D/lm_model/onnx-e5/model.onnx" ] || fail "model.onnx not copied"
 [ -f "$D/lm_model/onnx-e5/tokenizer.json" ] || fail "tokenizer.json not copied"
 grep -q "dashboard-be-dev" "$D/docker.log" || fail "model not taken from the dev image"
+
+# 4b: uppercase expected digest still matches (case-insensitive compare)
+fresh upper
+echo "$FIXTURE_SHA" | tr 'a-f' 'A-F' > "$D/onnxruntime.sha256"
+run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null || fail "uppercase digest rejected"
+[ -f "$D/onnxruntime/lib/libonnxruntime.dylib" ] || fail "library not installed with uppercase digest"
+
+# 4c: expected digest not exactly 64 hex chars -> refused before any download
+for bad in deadbeef "${FIXTURE_SHA}0" "${FIXTURE_SHA%?}g"; do
+  fresh badhex
+  echo "$bad" > "$D/onnxruntime.sha256"
+  rc=0; run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null 2>&1 || rc=$?
+  [ "$rc" = 3 ] || fail "malformed digest [$bad]: expected exit 3, got $rc"
+  [ ! -s "$D/curl.log" ] || fail "curl called with malformed digest [$bad]"
+done
+
+# 4d: docker cp fails after docker create -> created container is removed
+fresh cpfail
+mkdir -p "$D/onnxruntime/lib"; touch "$D/onnxruntime/lib/libonnxruntime.dylib"
+if run env DOCKER_CP_FAIL=1 ./setup-native-model.sh >/dev/null 2>&1; then fail "succeeded despite docker cp failure"; fi
+grep -q '^rm .*stubcid' "$D/docker.log" || fail "created container not removed after docker cp failure"
 
 # 5: missing digest file -> refuses before any download
 fresh nodigest

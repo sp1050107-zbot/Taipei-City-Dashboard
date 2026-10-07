@@ -20,7 +20,7 @@
 
 ## Answer
 
-Commit: see `git log -1` on branch feature/phase2-03 (sha recorded in the hand-off report; a commit cannot contain its own sha).
+Commit: `5ef5a0e4`.
 
 - `docker/docker-compose-db.yaml`: `redis` publishes `6379:6379`, `postgres-data` publishes `5433:5432`; `postgres-manager` still `5432:5432`. Volumes and container names untouched.
 - `docker/test-docker-compose-db.py` (stdlib only, plain text matching). RED before the change: `AssertionError: postgres-data must publish host port 5433 -> 5432`. GREEN after: `PASS` (4 checks: both new mappings, manager unchanged, volumes and container names unchanged).

@@ -20,7 +20,7 @@
 
 ## Answer
 
-Commit: see `git log -1` on branch feature/phase2-06 (sha recorded in the agent report).
+Commit: `421eb701`.
 
 - RED: `node Taipei-City-Dashboard-FE/vite.server-config.test.mjs` -> `ERR_MODULE_NOT_FOUND: Cannot find module .../vite.server-config.js`.
 - GREEN: same command -> `PASS` (container mode unchanged incl. rewrite `/api/dev/x` -> `/api/v1/x`; native default target `http://localhost:8088`, port 8080, no `citydashboard.taipei` anywhere; `VITE_LOCAL_BE_URL` override honoured).
