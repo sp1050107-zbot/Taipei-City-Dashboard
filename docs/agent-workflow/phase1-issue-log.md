@@ -14,7 +14,7 @@
 | A2 | `~/gsd-core` 的安裝器無法執行：`Cannot find module '../gsd-core/bin/lib/shell-command-projection.cjs'` | 倉庫沒有 build 產物 | `npm ci` → `npm run build:lib` | ✅ |
 | A3 | gsd 安裝後 hooks 被略過：`gsd-secret-read-guard.js`、`gsd-graphify-update.sh`、`gsd-config-reload.js` 等 "not found at target" | 缺 `hooks/dist` | `npm run build:hooks` 後重裝（Claude 與 Codex 各一次）；`~/.claude/hooks` 確認出現三個 hook | ✅ |
 | A4 | Claude Code 裝的是 `get-shit-done` 1.42.3（67 個技能），**不是**你 fork 的 `@opengsd/gsd-core` 1.16.0；Codex 完全沒裝 gsd | `~/.claude/get-shit-done/VERSION`；`~/.codex` 無 gsd | 先備份到 `~/.gstack-dev/backups/gsd-20261006-005627`（約 4.3 MB），再 `node bin/install.js --claude --global`（72 技能、35 agents）與 `--codex --global`（72 技能、99 個 agent toml） | ✅（備份可還原） |
-| A5 | Codex 安裝器警告：80 處 `.claude` 路徑未替換 | 安裝輸出 | **未驗證**是否影響 Codex 實際使用 | ❓ |
+| A5 | Codex 安裝器警告：80 處 `.claude` 路徑未替換 | 安裝輸出 | 2026-10-08 實測：不影響 `AGENTS.md` 規則的載入與遵守；`CLAUDE.md` 對 Codex 不可見；Codex 預設沙箱是 `danger-full-access`，必須明確帶 `-s read-only`。證據見 `evidence/a5-codex-agents-md-probe.md` | ✅（僅限 AGENTS.md 規則；Codex 審 diff 品質與 Kandev profile 仍 ❓） |
 | A6 | Claude 端 statusline 因「已設定」未被覆蓋 | 安裝輸出 `Skipping statusline` | 保留你原本的設定 | ✅ |
 | A7 | gstack `./setup` 需要 `bun`，機器沒有 | `bun: command not found` | 經你同意 `brew install oven-sh/bun/bun`（1.4.2） | ✅ |
 | A8 | `./setup --host claude` 回 `skipped … links to ~/.agents/skills/gstack` | 舊安裝是連結到 `~/.agents/skills/gstack`（v1.91.1.0） | 加 `--global` 才取代；現在 `claude`/`codex` 皆為 `~/gstack` 來源、v1.91.25.0，`/qa`、`/ship`、`/review` 等 5 個獨立技能出現 | ✅ |
@@ -145,14 +145,14 @@
 - ❓⏳ 自行驗證管理員登入：`grep DASHBOARD_DEFAULT ~/Taipei-City-Dashboard/docker/.env`
 - ⏳ 確認決策記錄的 12 條 ruling 與本表 D 節
 - ⏳ 是否設定本機 git `user.name`／`user.email`；是否處理 A11（gstack 升級／routing）
-- ❓ A5：Codex 端 80 處 `.claude` 路徑的實際影響（驗證步驟見檔尾「A5 驗證步驟」；**取得大里同意前不啟動 Codex**）
+- ✅ A5：已於 2026-10-08 經大里同意以唯讀方式驗證（證據 `evidence/a5-codex-agents-md-probe.md`）；剩餘 ❓：Codex 審 diff 的實際品質、Kandev 的 Codex agent profile 能否唯讀；gstack `/codex` 經讀原始碼確認預設 `read-only`（未實跑，見證據檔）
 - 🟡 C 節 13 個 Minor：5 項已於 Phase 2 啟動時修掉（5/6/7/8/10/12，共 6 項，見各列狀態）；餘 1–4（`make-env.sh`，待合併）、9（可攜性）留 Phase 2 計畫評估；11、13 無需修
 - B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、（B27 GA 已於 F1 處理）進入 Phase 2 計畫時處理
 - ⏳ F2：登入頁 Shift＋點 logo 切換成 email＋密碼，實際登入一次，確認管理員可用
 - 🟡 F8／F9：YouBike 地圖圖層匯出、新北 YouBike DAG（需要時再做）
 - ✅ 殘留分支／worktree（2026-10-08）：已刪除已合併的 `feature/phase2-*`（含 05b、11b、fix）、`kandev-ticket-cards`、`disable-ga`、`airflow-youbike`；Kandev 的 9 個任務（P1-01…08、P2-00）已用 `POST /tasks/:id/archive` 封存，worktree 與分支由 Kandev 一併移除，對話紀錄仍可讀取（抽查 P1-01=15、P1-08=27、P2-00=100 則）；`qa-docs` 經使用者同意丟棄（最後 commit `1dfdad49`，工作樹乾淨）。仍保留 `phase2-integration` worktree（`feature/phase2-hybrid-dev`，屬其他 session，P2-10 可能用到）
 
-## G. A5 驗證步驟：Codex 能讀到並遵守 Taipei 的 AGENTS.md 規則嗎？（待大里同意後才執行）
+## G. A5 驗證步驟：Codex 能讀到並遵守 Taipei 的 AGENTS.md 規則嗎？（已於 2026-10-08 執行，結果見 `evidence/a5-codex-agents-md-probe.md`）
 
 目的：確認 `docs/decisions/0004-codex-independent-review-and-cross-verification.md` 的前提成立，也就是 Codex 原生讀 `AGENTS.md`，規則放在那裡它看得到。**以下全部尚未執行；Codex 只能唯讀。**
 
@@ -169,7 +169,7 @@
 6. **記錄**：把結果（Codex 的原文回答摘錄與指令）寫進本表 A5 的狀態欄與 `docs/agent-workflow/evidence/`，Claude 先查證再採納。
 
 
-- 🟡 `feature/qa-docs` 分支尚在：`git branch -D` 被 pro-workflow 的 git-blast-radius hook 擋下，等使用者決定是否以 `PRO_WORKFLOW_ALLOW_UNSAFE_GIT=1` 覆寫；worktree 已移除，commit `1dfdad49` 仍可由分支找回
+- ✅ `feature/qa-docs` 分支已由使用者在自己的終端機以 `git branch -D` 刪除（2026-10-08，was `1dfdad49`；pro-workflow 的 git-blast-radius hook 擋下我的覆寫，因為 `PRO_WORKFLOW_ALLOW_UNSAFE_GIT` 寫在指令裡傳不到 hook 的環境，要設在 Claude Code 本身的環境才有效）；`feature/` 分支現只剩 `phase2-hybrid-dev`
 
 ### 補記（清理過程）
 - 我為了「探測有沒有 archive 端點」對 P1-01 直接送了 `POST /tasks/:id/archive`，探測動作實際就執行了封存（HTTP 200）。結果與使用者後來要求的一致，但這是我的操作失誤：**探測端點不要用有副作用的 HTTP 方法**。
