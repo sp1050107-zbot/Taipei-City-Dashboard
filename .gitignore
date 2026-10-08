@@ -54,6 +54,11 @@ Taipei-City-Dashboard-FE/.env
 Taipei-City-Dashboard-FE/.env.development
 Taipei-City-Dashboard-FE/.env.production
 Taipei-City-Dashboard-FE/.env.test
+Taipei-City-Dashboard-FE/.env.local
+Taipei-City-Dashboard-FE/.env.development.local
+Taipei-City-Dashboard-FE/.env.production.local
+Taipei-City-Dashboard-FE/.env.test.local
+Taipei-City-Dashboard-FE/.env.*.local
 
 # docker-compose
 # db data

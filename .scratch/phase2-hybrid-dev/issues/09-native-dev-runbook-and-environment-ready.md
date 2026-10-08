@@ -2,7 +2,7 @@
 
 **What to build:** The hybrid stack is ready to verify: a runbook exists and the environment has been brought up. The runbook covers starting Phase 2, the rule that only one of Phase 1 or Phase 2 runs at a time, the return-to-Phase-1 section, and recording HMR and restart timings. Bringing the environment up stops the Phase 1 frontend and backend containers, recreates the `postgres-data` and `redis` containers with the new ports (volumes kept, no initialisation rerun), installs Node 21, and reinstalls frontend dependencies on the host. Implements the first half of plan Task 8 as revised by ticket 01.
 
-**Blocked by:** 02, 03, 04, 05, 06, 07, 08 (all must be merged to the integration branch).
+**Blocked by:** 02, 03, 04, 05, 06, 07, 08, 11 (all must be merged to the integration branch).
 
 **Status:** ready-for-agent
 
