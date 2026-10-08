@@ -15,3 +15,18 @@ Owner approved the step in chat. Runbook section 3. Every number below is from t
 
 Not covered: admin login and debugger breakpoints (owner steps, still open); the `/geo_server/` question.
 Cost of switching back to Phase 2: `npm ci` on the host again.
+
+## Switch back to the native stack (2026-10-09, owner approved)
+
+| Step | Result |
+|---|---|
+| runbook 1.1: `git status --short` / `git diff --stat` on `Taipei-City-Dashboard-BE` and `-FE` | both empty (clean) |
+| prerequisites | `docker/.env` mode 600, `mapbox-key.txt` present, `dashboard-be-dev:latest` present, Node v21.7.3, go1.27.1 darwin/arm64, `onnxruntime` and `lm_model` already in the BE directory (so step 4 download was not needed and not run) |
+| 1.2 `docker stop dashboard-fe dashboard-be` | stopped; 8080 and 8088 free |
+| 1.3 DB ports | `redis 127.0.0.1:6379`, `postgres-data 127.0.0.1:5433` already published |
+| 1.5 host `npm ci` | `added 402 packages ... in 37s`; `node_modules/@rollup` has `rollup-darwin-arm64` again |
+| 1.5 `make-dev-env.sh` | `refusing to overwrite existing .env.local` (file exists, mode 600): expected |
+| 1.6 backend `dev-native.sh` | listener `main` on `127.0.0.1:8088`; `GET /api/v1/dashboard/` 200, first poll about 3 s |
+| 1.7 frontend `npm run dev` | listener `node` on `127.0.0.1:8080`; `GET /` 200 |
+| proxy | `/api/dev/component/60/chart?city=taipei` through 8080 -> native BE: 15115 rentable / 31631 free (live Airflow data) |
+| dlv | `go install github.com/go-delve/delve/cmd/dlv@latest` -> `~/go/bin/dlv`, Delve 1.27.2 (not on PATH) |
