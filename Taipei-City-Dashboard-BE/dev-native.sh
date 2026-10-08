@@ -19,6 +19,11 @@ port_in_use() {
   if [ -n "${DEV_NATIVE_PORT_CHECK:-}" ]; then
     "$DEV_NATIVE_PORT_CHECK" 127.0.0.1 8088
   else
+    # Fail closed: a missing `nc` must never read as "port free".
+    if ! command -v nc >/dev/null 2>&1; then
+      echo "dev-native: cannot check whether 127.0.0.1:8088 is free because 'nc' is not installed; install it (or set DEV_NATIVE_PORT_CHECK) so Phase 1 and Phase 2 stay one at a time; see docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md" >&2
+      exit 1
+    fi
     nc -z 127.0.0.1 8088 >/dev/null 2>&1
   fi
 }

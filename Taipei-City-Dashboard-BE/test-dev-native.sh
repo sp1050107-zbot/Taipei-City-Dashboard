@@ -212,6 +212,20 @@ grep -q "0002-phase1-phase2-one-stack-at-a-time.md" "$WORK/h.err" || fail "port 
 grep -q "8088" "$WORK/h.err" || fail "port message should name the port"
 [ ! -f "$WORK/go.env" ] || fail "go ran despite busy port"
 
+# 11. Fail closed: with the default port check and no `nc`, refuse (never
+# treat "command not found" as "port free"). PATH holds only dirname.
+mkdir -p "$WORK/nonc"
+ln -s "$(command -v dirname)" "$WORK/nonc/dirname"
+rm -f "$WORK/go.env"
+if env -u DEV_NATIVE_PORT_CHECK PATH="$WORK/nonc" DEV_NATIVE_ENV_FILE="$WORK/fixture.env" \
+  ORT_LIBRARY_PATH="$WORK/lib/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/" \
+  /bin/bash ./dev-native.sh >"$WORK/i.out" 2>"$WORK/i.err"; then
+  fail "launcher should fail closed when nc is missing"
+fi
+grep -q "nc" "$WORK/i.err" || fail "missing-nc message should name nc"
+grep -q "0002-phase1-phase2-one-stack-at-a-time.md" "$WORK/i.err" || fail "missing-nc message should cite decision 0002"
+[ ! -f "$WORK/go.env" ] || fail "go ran despite missing nc"
+
 # 7. No container commands.
 if grep -vE '^\s*#' dev-native.sh | grep -qE 'docker[ -]compose|docker +(run|compose|start|up)'; then
   fail "launcher must not run docker or docker compose"
