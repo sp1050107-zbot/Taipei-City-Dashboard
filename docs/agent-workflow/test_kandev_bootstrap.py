@@ -4,7 +4,9 @@ import sys, os
 import urllib.error
 from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(__file__))
+import tempfile, pathlib
 from kandev_bootstrap import call, main, WS_NAME, COLUMNS, WORKFLOWS, SEED_TASKS
+import kandev_bootstrap as kb
 
 
 def test_unreachable_raises_friendly_error():
@@ -50,6 +52,26 @@ def test_state():
     return len(wfs), len(repos), len(tasks)
 
 
+def test_ticket_cards_live():
+    """Every .scratch ticket has exactly one live card in the right column, description = path only."""
+    ws, wfs, repos, tasks = snapshot()
+    wf = next(w for w in wfs if w["name"] == kb.TICKET_WORKFLOW)
+    steps = {s["id"]: s["name"] for s in call("GET", f"/workflows/{wf['id']}/workflow/steps")["steps"]}
+    by_key = {}
+    for t in tasks:
+        by_key.setdefault(t["title"].split(" ")[0], []).append(t)
+    cards = kb.ticket_cards()
+    assert cards, "no tickets found under .scratch"
+    for c in cards:
+        found = by_key.get(c["key"], [])
+        assert len(found) == 1, f"{c['key']}: expected exactly one card, got {len(found)}"
+        t = found[0]
+        assert t["title"] == c["title"], f"{c['key']}: stale title"
+        assert t["description"] == c["desc"], f"{c['key']}: description must be the ticket path only"
+        assert steps.get(t["workflow_step_id"]) == c["column"], f"{c['key']}: in {steps.get(t['workflow_step_id'])!r}, want {c['column']!r}"
+    return len(cards)
+
+
 def test_idempotent():
     before = snapshot()
     main()
@@ -57,8 +79,92 @@ def test_idempotent():
     assert (len(before[1]), len(before[2]), len(before[3])) == (len(after[1]), len(after[2]), len(after[3])), "second run created duplicates"
 
 
+# ---- ticket cards: one Kandev card per .scratch ticket, description = the file path only ----
+
+def make_ticket(root, feature, num, slug, title, status, answer=False):
+    d = pathlib.Path(root) / ".scratch" / feature / "issues"
+    d.mkdir(parents=True, exist_ok=True)
+    body = f"# {num:02d}: {title}\n\n**What to build:** x\n\n**Blocked by:** None\n\n**Status:** {status}\n\n- [ ] a\n"
+    if answer:
+        body += "\n## Answer\n\ndone\n"
+    f = d / f"{num:02d}-{slug}.md"
+    f.write_text(body, encoding="utf-8")
+    return f
+
+
+def test_column_for_status():
+    assert kb.column_for("ready-for-agent", False) == "Backlog"
+    assert kb.column_for("claimed", False) == "Build (worktree)"
+    assert kb.column_for("claimed", True) == "Verify", "claimed with an Answer is waiting for acceptance"
+    assert kb.column_for("resolved", True) == "Done"
+    assert kb.column_for("ready-for-human", False) == "Merge-ready"
+    assert kb.column_for("wontfix", False) == "Done"
+    assert kb.column_for("something-new", False) == "Backlog", "unknown statuses must not be lost"
+
+
+def test_ticket_cards_parse_files():
+    with tempfile.TemporaryDirectory() as root:
+        make_ticket(root, "phase2-hybrid-dev", 1, "revise-plan", "Revise the plan", "resolved", True)
+        make_ticket(root, "phase2-hybrid-dev", 10, "acceptance", "Acceptance", "claimed", True)
+        make_ticket(root, "other-feature", 2, "thing", "Do a thing", "ready-for-agent")
+        cards = {c["key"]: c for c in kb.ticket_cards(root)}
+        assert set(cards) == {"P2-01", "P2-10", "other-feature-02"}, sorted(cards)
+        c = cards["P2-01"]
+        assert c["title"] == "P2-01 Revise the plan"
+        assert c["desc"] == ".scratch/phase2-hybrid-dev/issues/01-revise-plan.md", "description must be the path only"
+        assert c["column"] == "Done" and cards["P2-10"]["column"] == "Verify"
+        assert cards["other-feature-02"]["column"] == "Backlog"
+
+
+def test_sync_creates_moves_and_is_idempotent():
+    steps = {c["name"]: {"id": "step-" + c["name"]} for c in COLUMNS}
+    calls = []
+    store = {}
+
+    def fake_call(method, path, body=None):
+        calls.append((method, path, body))
+        if method == "GET" and path.endswith("/tasks"):
+            return {"tasks": list(store.values())}
+        if method == "POST" and path == "/tasks":
+            t = {"id": "t%d" % (len(store) + 1), "title": body["title"], "description": body["description"],
+                 "workflow_step_id": body["workflow_step_id"]}
+            store[t["id"]] = t
+            return t
+        if method == "POST" and path.endswith("/move"):
+            tid = path.split("/")[2]
+            store[tid]["workflow_step_id"] = body["workflow_step_id"]
+            return {}
+        if method == "PATCH":
+            tid = path.split("/")[2]
+            store[tid].update({k: v for k, v in body.items() if k in ("title", "description")})
+            return {}
+        raise AssertionError((method, path))
+
+    with tempfile.TemporaryDirectory() as root:
+        f = make_ticket(root, "phase2-hybrid-dev", 1, "a", "Alpha", "ready-for-agent")
+        make_ticket(root, "phase2-hybrid-dev", 2, "b", "Beta", "resolved", True)
+        with patch.object(kb, "call", fake_call):
+            kb.sync_ticket_cards("ws", "wf", steps, "repo", root)
+            assert len(store) == 2, store
+            by = {t["title"].split(" ")[0]: t for t in store.values()}
+            assert by["P2-01"]["workflow_step_id"] == "step-Backlog"
+            assert by["P2-02"]["workflow_step_id"] == "step-Done", "resolved ticket must land in Done"
+            n = len(calls)
+            kb.sync_ticket_cards("ws", "wf", steps, "repo", root)
+            assert [c for c in calls[n:] if c[0] != "GET"] == [], "second sync must change nothing"
+            # the ticket moves on: the card follows, no duplicate
+            f.write_text(f.read_text(encoding="utf-8").replace("ready-for-agent", "claimed"), encoding="utf-8")
+            kb.sync_ticket_cards("ws", "wf", steps, "repo", root)
+            assert len(store) == 2
+            assert by["P2-01"]["workflow_step_id"] == "step-Build (worktree)"
+
+
 if __name__ == "__main__":
     test_unreachable_raises_friendly_error()
+    test_column_for_status()
+    test_ticket_cards_parse_files()
+    test_sync_creates_moves_and_is_idempotent()
     print("state:", test_state())
+    print("ticket cards:", test_ticket_cards_live())
     test_idempotent()
     print("PASS")
