@@ -17,6 +17,7 @@ Tickets and specs are local markdown files. The Kandev board (http://127.0.0.1:3
 - The file is the source of truth; the card is only a pointer.
 - Claim: start a Kandev session on the card, then set `Status: claimed` in the file before any work.
 - Resolve: append the answer to the file, set `Status: resolved`, and move the card to Done.
+- **Kandev exists so the owner can look back at progress; keeping it current is mandatory.** After creating a ticket, changing its `Status:` or adding an `## Answer`, run `python3 docs/agent-workflow/kandev_bootstrap.py` in the same turn (idempotent: creates missing cards, moves existing ones) and verify with `python3 docs/agent-workflow/test_kandev_bootstrap.py`. Column mapping: `ready-for-agent` -> Backlog, `claimed` -> Build (worktree), `claimed` with an `## Answer` -> Verify (waiting for the owner), `ready-for-human` -> Merge-ready, `resolved` / `wontfix` -> Done. Titles are limited to 60 characters by Kandev.
 
 ## When a skill says "publish to the issue tracker"
 

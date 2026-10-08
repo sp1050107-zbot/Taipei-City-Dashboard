@@ -37,6 +37,7 @@
 
 ## 追蹤與領域文件（使用者 2026-10-07 決定）
 - **票（tracker）**：Kandev 是任務看板；spec 與票的**內容**是本機 markdown：`.scratch/<feature>/spec.md`、`.scratch/<feature>/issues/<NN>-<slug>.md`（阻擋關係寫在票內 `Blocked by:`）。一張票對應一張 Kandev 卡，卡片描述只放該票檔案路徑，不複製內容，避免兩處不一致。
+- **Kandev 是擁有者回查進度用的看板（強制，使用者 2026-10-08 決定）**：每張票都必須有卡，卡片所在欄位必須跟票的 `Status:` 一致。新增票、改 `Status:`、或票多了 `## Answer` 之後，**同一回合、回報完成之前**執行 `python3 docs/agent-workflow/kandev_bootstrap.py`（冪等，會補卡並移動卡片），再用 `python3 docs/agent-workflow/test_kandev_bootstrap.py` 驗證。對應：ready-for-agent→Backlog、claimed→Build (worktree)、claimed 且有 Answer→Verify（等擁有者驗收）、resolved/wontfix→Done；標題上限 60 字。
 - **ADR 與決策**：只放 `docs/decisions/`，不建立 `docs/adr/`；`GLOSSARY.md` 放 repo 根目錄。同一個決定只寫在一處，其他地方用路徑引用。
 - 這些位置要在 `docs/agents/*.md`（由 `/setup-matt-pocock-skills` 產生）中同樣設定，讓 matt skills 與本檔一致。
 

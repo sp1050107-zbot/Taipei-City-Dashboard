@@ -13,7 +13,7 @@
 - 網址 `http://127.0.0.1:38429`，workspace `taipei-city-dashboard`，兩條 workflow：`A 部署與研究`、`B 客製開發`。
 - 一個 task = 一個 session；欄位順序 Backlog → Decide → Context → Build → Verify → Merge-ready → Done。
 - task 前綴與既有 workspace 同為 `KAN`（Kandev 自動指派），請用標題前綴 `P1-xx` 辨識本專案的 task。
-- 重建/補種：`python3 docs/agent-workflow/kandev_bootstrap.py`（冪等）。
+- 重建/補種：`python3 docs/agent-workflow/kandev_bootstrap.py`（冪等）。它也會把 `.scratch/*/issues/` 的每張票同步成一張卡；**票一有變動就要跑**（Kandev 是擁有者回查進度用，強制，見 AGENTS.md）。
 
 ## Context 快滿時
 1. 執行 `gsd-pause-work` 寫交接。
