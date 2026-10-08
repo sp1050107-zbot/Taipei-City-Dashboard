@@ -26,7 +26,10 @@ DB_MANAGER_HOST=postgres-manager
 REDIS_HOST=redis
 QDRANT_URL=http://qdrant:6333
 GIN_DOMAIN=0.0.0.0
+LM_MODEL_PATH=/opt/lm_model/onnx-e5/
+ORT_LIBRARY_PATH=/opt/onnxruntime/lib/libonnxruntime.so
 EOF
+
 
 # Stub go: dumps its environment and arguments to files, prints nothing.
 mkdir -p "$WORK/bin"
@@ -36,6 +39,12 @@ env > "$WORK/go.env"
 printf '%s\n' "\$@" > "$WORK/go.args"
 EOF
 chmod +x "$WORK/bin/go"
+
+# Port preflight hook: default is "nothing listens"; tests never open sockets.
+printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/port-free"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/port-busy"
+chmod +x "$WORK/bin/port-free" "$WORK/bin/port-busy"
+export DEV_NATIVE_PORT_CHECK="$WORK/bin/port-free"
 
 # Fake library and model so the success path passes the presence checks.
 mkdir -p "$WORK/lib" "$WORK/model"
@@ -71,13 +80,14 @@ assert_env "GOTOOLCHAIN=local"
 assert_env "ORT_LIBRARY_PATH=$WORK/lib/libonnxruntime.dylib"
 assert_env "JWT_SECRET=$SENTINEL_JWT"
 
+
 # "Exactly the listed overrides and nothing else new": compare variable names
 # against a baseline (inherited env + fixture, no launcher).
-keys() { sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' | grep -vxE '_|PWD|OLDPWD|SHLVL|DEV_NATIVE_ENV_FILE' | sort -u; }
-BASE=$(PATH="$WORK/bin:$PATH" bash -c "set -a; source '$WORK/fixture.env'; env" | keys)
+keys() { sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' | grep -vxE '_|PWD|OLDPWD|SHLVL|DEV_NATIVE_ENV_FILE|DEV_NATIVE_PORT_CHECK' | sort -u; }
+BASE=$( { env; grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$WORK/fixture.env"; } | keys)
 GOT=$(keys < "$WORK/go.env")
 NEW=$(comm -13 <(echo "$BASE") <(echo "$GOT") | tr '\n' ' ')
-ALLOWED="DB_MANAGER_PORT GIN_PORT GOTOOLCHAIN LM_MODEL_PATH ORT_LIBRARY_PATH REDIS_PORT "
+ALLOWED="DB_MANAGER_PORT GIN_PORT GOTOOLCHAIN REDIS_PORT "
 # DB_*_PORT/HOST, REDIS_HOST, QDRANT_URL, GIN_DOMAIN are overrides of fixture keys, so only the rest are "new".
 [ "$NEW" = "$ALLOWED" ] || fail "unexpected new variables: [$NEW] (allowed [$ALLOWED])"
 
@@ -134,6 +144,18 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 for p in $(grep -E 'echo "dev-native' dev-native.sh | grep -oE '[A-Za-z0-9_./-]+/[A-Za-z0-9_.-]+\.(sh|md|template|py)'); do
   [ -e "$REPO_ROOT/$p" ] || [ -e "$p" ] || fail "error text cites a path that does not exist: $p"
 done
+
+# 9. Finding 2: the env file's LM_MODEL_PATH / ORT_LIBRARY_PATH never win; the
+# caller's own values (tests 1, 3, 4) and the native defaults do.
+if [ ! -f "$PWD/onnxruntime/lib/libonnxruntime.dylib" ]; then
+  if run "$WORK/f.out" "$WORK/f.err" ORT_LIBRARY_PATH= LM_MODEL_PATH="$WORK/model/"; then fail "default library absent, should fail"; fi
+  grep -q "$PWD/onnxruntime/lib/libonnxruntime.dylib" "$WORK/f.err" || fail "env file ORT_LIBRARY_PATH must not win over the native default"
+fi
+if [ ! -f "$PWD/lm_model/onnx-e5/model.onnx" ]; then
+  if run "$WORK/g.out" "$WORK/g.err" ORT_LIBRARY_PATH="$WORK/lib/libonnxruntime.dylib" LM_MODEL_PATH=; then fail "default model absent, should fail"; fi
+  grep -q "$PWD/lm_model/onnx-e5/model.onnx" "$WORK/g.err" || fail "env file LM_MODEL_PATH must not win over the native default"
+fi
+
 
 # 7. No container commands.
 if grep -vE '^\s*#' dev-native.sh | grep -qE 'docker[ -]compose|docker +(run|compose|start|up)'; then

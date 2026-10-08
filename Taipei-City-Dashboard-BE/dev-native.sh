@@ -12,10 +12,19 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+# The caller's own model/library locations win over everything. The Docker
+# environment file carries container paths for these two names, so it must
+# never decide them.
+CALLER_ORT_LIBRARY_PATH="${ORT_LIBRARY_PATH:-}"
+CALLER_LM_MODEL_PATH="${LM_MODEL_PATH:-}"
+
 set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
+
+export ORT_LIBRARY_PATH="${CALLER_ORT_LIBRARY_PATH:-$(pwd)/onnxruntime/lib/libonnxruntime.dylib}"
+export LM_MODEL_PATH="${CALLER_LM_MODEL_PATH:-$(pwd)/lm_model/onnx-e5/}"
 
 export DB_DASHBOARD_HOST=localhost
 export DB_DASHBOARD_PORT=5433
@@ -26,10 +35,8 @@ export REDIS_PORT=6379
 export QDRANT_URL=http://localhost:6333
 export GIN_DOMAIN=localhost
 export GIN_PORT=8088
-# Defaults are where the native model setup script puts the files; this
-# script neither runs nor depends on it.
-export ORT_LIBRARY_PATH="${ORT_LIBRARY_PATH:-$(pwd)/onnxruntime/lib/libonnxruntime.dylib}"
-export LM_MODEL_PATH="${LM_MODEL_PATH:-$(pwd)/lm_model/onnx-e5/}"
+# Defaults (set above) are where the native model setup script puts the
+# files; this script neither runs nor depends on it.
 
 if [ ! -f "$ORT_LIBRARY_PATH" ]; then
   echo "dev-native: ONNX Runtime library not found: $ORT_LIBRARY_PATH (set ORT_LIBRARY_PATH or run the native model setup)" >&2
