@@ -13,7 +13,7 @@
 - [知識圖說明](CLAUDE.md#知識圖understand-anything) — `.ua/` 圖的建法、補強指令；`.vue` 檔無 parser（摘要為推斷）
 
 ## 已定案決定
-- 檔名用 AGENTS.md；.planning/ 納入 git；本輪不接 Codex；不設 AI/LLM 金鑰；Mapbox 用使用者自己的 token（`mapbox-key.txt`，不入 git）。
+- 檔名用 AGENTS.md；.planning/ 納入 git；Phase 1 當時不接 Codex；自 2026-10-08 起 Codex 固定審查，見 docs/decisions/0004-codex-independent-review-and-cross-verification.md；不設 AI/LLM 金鑰；Mapbox 用使用者自己的 token（`mapbox-key.txt`，不入 git）。
 - git 身分沿用自動偵測的 `opsai@…local`，不另設 user.name/email（使用者 2026-10-07 同意）；不 push。
 - `.ua/`（Understand-Anything 知識圖）視為非程式碼，可直接在 `develop` commit（使用者 2026-10-07 同意，已寫入 AGENTS.md 規則 2）。
 

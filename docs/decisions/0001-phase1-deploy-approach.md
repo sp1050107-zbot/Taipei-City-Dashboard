@@ -1,5 +1,7 @@
 # 0001 Phase 1 部署做法
 
+> Codex 部分由 [0004](0004-codex-independent-review-and-cross-verification.md) 取代（下文「本輪不接 Codex」「Codex skipped」只在 Phase 1 當時有效；本文不重寫）。
+
 日期：2026-10-06　審查：gstack `/plan-eng-review`（計畫 `docs/superpowers/plans/2026-10-06-phase1-local-deploy.md`，commit `aeb76b3`）
 審查模式：非互動。依 executing-plans 的規則，所有決策點採「建議選項」並記為 ruling，**未經使用者逐題回答**；使用者可在 Merge-ready 前推翻（見「未決定」）。
 

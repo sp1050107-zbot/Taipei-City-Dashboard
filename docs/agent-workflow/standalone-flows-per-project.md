@@ -35,6 +35,8 @@
 2. `test-driven-development`:先寫會失敗的測試。
 3. `verification-before-completion` → `finishing-a-development-branch`。
 
+**Codex 驗證**:合併或交付前,請 Codex(唯讀)審這條流程產出的計畫、diff 與驗收證據(`/codex review`);Claude 先查證再採納,Codex 只審不修(見 `docs/decisions/0004-codex-independent-review-and-cross-verification.md`)。
+
 **缺口與補法**:部署與上線後觀測自己寫 runbook;跨 session 交接靠 plan 檔與 commit 紀錄。
 
 ---
@@ -57,6 +59,8 @@
 **修 bug**:`investigate` → `qa` → `ship`。
 
 **跨 session**:`context-save` / `context-restore`。
+
+**Codex 驗證**:合併或交付前,請 Codex(唯讀)審這條流程產出的計畫、diff 與驗收證據(`/codex review`);Claude 先查證再採納,Codex 只審不修(見 `docs/decisions/0004-codex-independent-review-and-cross-verification.md`)。
 
 **缺口與補法**:狀態檔不如 gsd 結構化;技能多、說明長,上下文成本高,建議只開用到的。
 
@@ -82,6 +86,8 @@
 
 **暫停與接手**:`gsd-pause-work` → `gsd-resume-work`;不確定時 `gsd-next`。**健康檢查**:`gsd-health`。
 
+**Codex 驗證**:合併或交付前,請 Codex(唯讀)審這條流程產出的計畫、diff 與驗收證據(`/codex review`);Claude 先查證再採納,Codex 只審不修(見 `docs/decisions/0004-codex-independent-review-and-cross-verification.md`)。
+
 **缺口與補法**:沒有瀏覽器 QA 與部署後監看,需要自己補。儀式較多,小改動用 `gsd-fast`。
 
 ---
@@ -100,6 +106,8 @@
 5. `code-review`、`pr`。
 
 **修 bug**:`diagnosing-bugs` → 修 → `code-review`。**issue 整理**:`triage`。**資料查詢**:`research`(查官方文件並存成 Markdown)。**交接**:`handoff`(本機因同名沒有連結,見下)。
+
+**Codex 驗證**:合併或交付前,請 Codex(唯讀)審這條流程產出的計畫、diff 與驗收證據(`/codex review`);Claude 先查證再採納,Codex 只審不修(見 `docs/decisions/0004-codex-independent-review-and-cross-verification.md`)。
 
 **缺口與補法**:沒有部署、營運、瀏覽器 QA。這個專案的 `tdd`、`handoff`、`retro`、`domain-modeling` 因與既有技能同名,沒有連結到 `~/.claude` 或 `~/.agents`;需要時用該專案內的路徑 `~/skills/skills/...` 直接讀。
 

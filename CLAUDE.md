@@ -8,6 +8,7 @@
 | 決策（該不該做、範圍、架構取捨） | gstack | `/office-hours` `/plan-eng-review` |
 | 背景（專案現況、程式碼地圖、跨 session 交接） | GSD | `gsd-map-codebase` `gsd-resume-work` |
 | 執行（TDD、worktree、驗證） | superpowers | `test-driven-development` `verification-before-completion` |
+| 獨立驗證（審計畫／diff／驗收證據） | Codex（唯讀） | `/codex review` `/codex consult`，見 `docs/decisions/0004-codex-independent-review-and-cross-verification.md` |
 
 ## Kandev
 - 網址 `http://127.0.0.1:38429`，workspace `taipei-city-dashboard`，兩條 workflow：`A 部署與研究`、`B 客製開發`。

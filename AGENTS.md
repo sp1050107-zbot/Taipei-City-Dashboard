@@ -25,7 +25,7 @@
 | pgAdmin | 8889 | 未啟動（官方 compose 可配，Phase 1 不需要） |
 
 ## 工作規則
-1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。例外（使用者 2026-10-07 同意）：`/implement-spec` 可自動開多個實作子 agent worktree，並由 merger 子 agent 合併到**同一條整合分支**（`feature/<spec-slug>`）；整合分支經 `/code-review` 與驗證通過後，才用一次本機 merge 回 `develop`。子 agent worktree 完成後要清理，且不得直接 merge 到 `develop`。
+1. 程式碼、腳本、compose、設定的變更：只在 worktree（`~/Taipei-City-Dashboard-worktrees/<name>`，分支 `feature/<slug>`）進行，TDD，通過後才本機 merge 回 `develop`。例外（使用者 2026-10-07 同意）：`/implement-spec` 可自動開多個實作子 agent worktree，並由 merger 子 agent 合併到**同一條整合分支**（`feature/<spec-slug>`）；整合分支經 `/code-review` 與驗證通過後，**還須 Codex 獨立審查通過**（`docs/decisions/0004-codex-independent-review-and-cross-verification.md`），才用一次本機 merge 回 `develop`。子 agent worktree 完成後要清理，且不得直接 merge 到 `develop`。
 2. 只有 `CLAUDE.md`、`AGENTS.md`、`MEMORY.md`、`GLOSSARY.md`、`docs/`（含 `docs/agents/`、`docs/decisions/`）、`.planning/`、`.scratch/`（本機 tracker 的 spec 與票，見「追蹤與領域文件」）、`.ua/`（Understand-Anything 的設定；大檔 `knowledge-graph.json` 與 `fingerprints.json` 可用 `/understand` 重建，已列入 `.gitignore`，不入版控，使用者 2026-10-08 決定）可直接在整合 checkout commit。`.scratch/` 內容同樣適用規則 4（不得放祕密）。
 3. 不 `git push`、不對 upstream 發 PR，除非使用者明確指示。
 4. 祕密：`mapbox-key.txt`、`docker/.env` 永不 commit、永不印出。commit 前用 token 的完整字串比對 staged diff（只比對，不印出）。
@@ -45,6 +45,7 @@
 - gstack＝決策與把關（`/office-hours`、`/plan-eng-review`、`/review`、`/qa`、`/cso`）
 - GSD＝背景與交接（`gsd-map-codebase`、`gsd-plan-phase`、`gsd-pause-work`、`gsd-resume-work`、`gsd-extract-learnings`）
 - superpowers＝TDD 執行閉環（`test-driven-development`、`using-git-worktrees`、`verification-before-completion`、`finishing-a-development-branch`）
+- 審查：Codex（唯讀）＝獨立驗證者，只審不修、不 merge、不 push；Claude 的 `/code-review`、`/review`、`/cso` 只是前置自檢，不能取代它，且 Claude 要先查證再採納 Codex 的結論（`docs/decisions/0004-codex-independent-review-and-cross-verification.md`）。
 - 每層結束寫一份交接檔，標頭固定：`目標 / 已決定 / 未決定 / 下一步 / 關鍵檔案路徑`。下一層只讀 `CLAUDE.md` + 該交接檔，需要細節時依其中路徑精準讀取。
 
 ## 先讀什麼

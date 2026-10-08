@@ -77,7 +77,7 @@
 ### 4.3 防幻覺規則
 
 1. **宣稱要附證據**:任何「已完成 / 已通過」都要貼指令與輸出(`verification-before-completion`)。文件裡的行號、數字、版本要能由指令重現。
-2. **生成者與驗證者分開**:執行的 session 不自己驗收。驗收用新的 session,或不同的模型(gstack `codex` 可做第二意見)。
+2. **生成者與驗證者分開**:執行的 session 不自己驗收。審查與驗收固定由 **Codex 擔任獨立驗證者**(唯讀,只審不修;見 `docs/decisions/0004-codex-independent-review-and-cross-verification.md`);Claude 自己的 `/code-review`、`/review`、`/cso` 只是前置自檢,不能取代這一關。Claude 也反向驗證 Codex:採納每條結論前先查證原碼或輸出。
 3. **引用先查證**:引用檔案與行號前先 `grep -n` 確認。
 4. **標示不確定**:無法驗證的項目寫 UNVERIFIED,不要寫成通過(Phase 1 的管理員登入就是這樣處理)。
 5. **不信任自述**:檢查 commit、diff、測試輸出,而不是 agent 的總結。
@@ -96,7 +96,7 @@
 |---|---|---|
 | 決策、規劃 | 最強模型 | 錯誤成本最高 |
 | 大量執行、重複修改 | 中等模型 + 嚴格測試 | 有測試擋住錯誤 |
-| 審查、驗收 | **與執行者不同的模型或新 session** | 避免同源偏差 |
+| 審查、驗收 | **固定 Codex(獨立驗證者,唯讀);Claude 自檢只是前置** | 避免同源偏差;結論由 Claude 反向查證 |
 | 搜尋、盤點 | 較小模型 | 成本低、只回結論 |
 
 ### 4.6 Worktree 衛生
@@ -200,7 +200,7 @@ Taipei 的前提:目前只有本機 Docker、沒有線上環境、不對上游 p
 
 **閘門**:任何 push 或遠端合併都要你明確同意。
 **`/ask-matt` 的答覆**:這些技能裡沒有部署或發布技能;能對應的只有 `/implement-spec` 的結尾(整合分支、`/code-review`)與 `/pr`(PR 內文:最小視覺、前後證據、單向門或雙向門判斷)。
-**目前定義(判斷 ⚠️,非 Matt 的流程)**:整合分支通過 `/code-review` → 本機合併到 `develop` → 在整合 checkout 重建並通過冒煙測試,才算「發布完成」。有線上環境後再加 `setup-deploy` 與 `land-and-deploy`。
+**目前定義(判斷 ⚠️,非 Matt 的流程)**:整合分支通過 `/code-review` ＋ Codex 審查 → 本機合併到 `develop` → 在整合 checkout 重建並通過冒煙測試,才算「發布完成」。有線上環境後再加 `setup-deploy` 與 `land-and-deploy`。
 
 ### 6.5 上線後觀測與事故 ✅(技能)/ ⚠️(套用)
 
@@ -277,7 +277,7 @@ Taipei 的前提:目前只有本機 Docker、沒有線上環境、不對上游 p
 | 2 | 本機 tracker 寫 `.scratch/<feature>/issues/` | `AGENTS.md` 規則 2 白名單已加入 `.scratch/`、`GLOSSARY.md`、`docs/agents/` |
 | 3 | `/handoff` 與規則 6 對齊 | 規則 6 已改:`/handoff` 產出要複製到 `.planning/handoffs/<日期>-<主題>.md` 並 commit,交接以已 commit 的路徑為準 |
 | 4 | ADR 與決策放 `docs/decisions/` | `AGENTS.md` 新增「追蹤與領域文件」:不建立 `docs/adr/`,`GLOSSARY.md` 在根目錄,同一決定只寫一處 |
-| 5 | 規則 1 接受 `/implement-spec` 自動開多 worktree 並合併 | 規則 1 已加例外:子 agent worktree 合併到同一條整合分支,通過 `/code-review` 與驗證後,才一次 merge 回 `develop`;子 worktree 要清理 |
+| 5 | 規則 1 接受 `/implement-spec` 自動開多 worktree 並合併 | 規則 1 已加例外:子 agent worktree 合併到同一條整合分支,通過 `/code-review` ＋ Codex 審查與驗證後,才一次 merge 回 `develop`;子 worktree 要清理 |
 
 ### 7.3 執行 `/setup-matt-pocock-skills` 時怎麼回答
 

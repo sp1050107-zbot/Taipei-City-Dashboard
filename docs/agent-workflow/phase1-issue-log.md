@@ -145,9 +145,26 @@
 - ❓⏳ 自行驗證管理員登入：`grep DASHBOARD_DEFAULT ~/Taipei-City-Dashboard/docker/.env`
 - ⏳ 確認決策記錄的 12 條 ruling 與本表 D 節
 - ⏳ 是否設定本機 git `user.name`／`user.email`；是否處理 A11（gstack 升級／routing）
-- ❓ A5：Codex 端 80 處 `.claude` 路徑的實際影響
+- ❓ A5：Codex 端 80 處 `.claude` 路徑的實際影響（驗證步驟見檔尾「A5 驗證步驟」；**取得大里同意前不啟動 Codex**）
 - 🟡 C 節 13 個 Minor：5 項已於 Phase 2 啟動時修掉（5/6/7/8/10/12，共 6 項，見各列狀態）；餘 1–4（`make-env.sh`，待合併）、9（可攜性）留 Phase 2 計畫評估；11、13 無需修
 - B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、（B27 GA 已於 F1 處理）進入 Phase 2 計畫時處理
 - ⏳ F2：登入頁 Shift＋點 logo 切換成 email＋密碼，實際登入一次，確認管理員可用
 - 🟡 F8／F9：YouBike 地圖圖層匯出、新北 YouBike DAG（需要時再做）
 - 🟡 Phase 2 已有多個 `feature/phase2-*` 分支與 `feature/p1-*`、`feature/p2-00-*` 殘留 worktree／分支，合併或清理前先確認
+
+## G. A5 驗證步驟：Codex 能讀到並遵守 Taipei 的 AGENTS.md 規則嗎？（待大里同意後才執行）
+
+目的：確認 `docs/decisions/0004-codex-independent-review-and-cross-verification.md` 的前提成立，也就是 Codex 原生讀 `AGENTS.md`，規則放在那裡它看得到。**以下全部尚未執行；Codex 只能唯讀。**
+
+1. **盤點（不啟動 Codex，唯讀）**：找出那 80 處 `.claude` 在哪些檔案、屬於哪一類。
+   `grep -rIl '\.claude' ~/.codex 2>/dev/null | head -50`，再各取前幾行分類：(a) 技能內文引用 `~/.claude/skills/...`；(b) hooks 或設定；(c) 其他。預期：只影響技能內容，不影響 `AGENTS.md` 的讀取（需以證據確認，現為 UNVERIFIED）。
+2. **確認 Codex 讀哪個檔**：Codex 在 repo 根目錄讀 `AGENTS.md`，不處理 `CLAUDE.md` 的 `@AGENTS.md` 匯入。步驟：`codex --help`／`codex exec --help` 確認唯讀沙箱旗標的實際名稱（以輸出為準，不憑記憶）。
+3. **正向探針（需同意）**：在整合 checkout `~/Taipei-City-Dashboard`，以唯讀沙箱啟動 Codex，問只能靠 `AGENTS.md` 回答的問題，期望答案：
+   - 「依本 repo 規則，誰可以執行 docker compose？」→ 只有整合 checkout，worktree 與 Kandev task 不行（規則 7）。
+   - 「可以 git push 嗎？」→ 不行，除非使用者明確指示（規則 3）。
+   - 「決策記錄放哪？」→ `docs/decisions/`，不建立 `docs/adr/`。
+   - 「整合分支合併回 develop 前還需要什麼？」→ `/code-review`、驗證，以及 Codex 獨立審查（規則 1 與 0004）。
+4. **負向探針（需同意）**：問只寫在 `CLAUDE.md` 的內容（例如「Kandev 欄位順序」）。若 Codex 答不出來，證明 Codex 讀不到 `CLAUDE.md`，規則必須寫在 `AGENTS.md`（0004 第 6 點的前提）。
+5. **判讀**：四個正向問題都答對且沒有嘗試寫檔、merge、push → A5 對 `AGENTS.md` 規則無影響，標 ✅；任一題答錯或 Codex 試圖修改 → 標 ❌，在本節記錄證據並回報，不自行修補。
+6. **記錄**：把結果（Codex 的原文回答摘錄與指令）寫進本表 A5 的狀態欄與 `docs/agent-workflow/evidence/`，Claude 先查證再採納。
+
