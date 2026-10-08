@@ -18,7 +18,7 @@
 - [ ] Dashboard page, map page and admin page load.
 - [x] Frontend HMR time and backend restart time are measured and recorded as numbers.
 - [ ] A breakpoint is hit on the frontend and on the backend; the tool used is recorded.
-- [ ] The return-to-Phase-1 section is executed and works.
+- [x] The return-to-Phase-1 section is executed and works (2026-10-09, owner approved; evidence `docs/agent-workflow/evidence/phase2/10-return-to-phase1.md`).
 - [x] A secret scan of all staged changes is clean and the frontend local environment file is ignored by git.
 - [ ] **Admin login is confirmed by the owner personally; no agent logs in or reads the admin password.** Until the owner reports, this item is UNVERIFIED.
 - [x] Every UNVERIFIED item from the spec is either proven with command output or left explicitly marked UNVERIFIED with the reason, including: ONNX Runtime 1.23.2 compatibility, host Go build, Node 21 install, `.env.local` non-leak, and the status code of `POST /component` when the Qdrant collection is missing.

@@ -86,7 +86,7 @@
    ```
 4. `redis` 與 `postgres-data` 多開的 `127.0.0.1` 埠不需還原,對 Phase 1 無害。
 
-> **UNVERIFIED**:第 2 步在這份 runbook 寫成時尚未實測,票 10 的驗證者要實際執行並記錄結果。
+> **已實測(2026-10-09,擁有者核准後執行)**:先停原生前後端(8080、8088 釋放),再執行第 2 步:`dashboard-fe-init` 輸出 `added 402 packages ... in 17s`、exit 0;`node_modules/@rollup` 只剩 `linux-arm64-gnu` 與 `linux-arm64-musl`(沒有 `darwin`)。第 3 步 `docker start dashboard-be dashboard-fe` 後約 20 秒,後端就緒訊號回 200、前端 200,頁面 0 個 4xx。代價:切回 Phase 2 時要在主機重跑 `npm ci`。
 > 切換階段的代價:每次來回都要重裝一次前端依賴(幾分鐘)。
 
 ## 4. 已知限制與 UNVERIFIED
