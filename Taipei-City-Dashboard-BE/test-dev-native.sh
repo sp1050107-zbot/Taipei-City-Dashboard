@@ -26,7 +26,28 @@ DB_MANAGER_HOST=postgres-manager
 REDIS_HOST=redis
 QDRANT_URL=http://qdrant:6333
 GIN_DOMAIN=0.0.0.0
+LM_MODEL_PATH=/opt/lm_model/onnx-e5/
+ORT_LIBRARY_PATH=/opt/onnxruntime/lib/libonnxruntime.so
 EOF
+
+# Hostile values: the launcher must treat the env file as data, never as code.
+{
+  echo '# a comment line'
+  echo ''
+  echo 'TRICKY_DOLLAR=pa$$word'
+  printf 'TRICKY_SUBST=$(touch %s/MARKER_SUBST)\n' "$WORK"
+  printf 'TRICKY_TICK=`touch %s/MARKER_TICK`\n' "$WORK"
+  printf 'TRICKY_SEMI=a;touch %s/MARKER_SEMI;b\n' "$WORK"
+  echo 'TRICKY_SPACE=hello   world  x'
+  echo "TRICKY_DQ=\"double with 'single' inside\""
+  echo "TRICKY_SQ='single with \$HOME and \"dq\"'"
+  echo 'TRICKY_EQ=a=b=c'
+  echo 'TRICKY_EMPTY='
+  echo 'TRICKY_MISMATCH="open only'
+  echo '1BAD=never'
+  echo 'BAD KEY=never'
+} >> "$WORK/fixture.env"
+printf 'TRICKY_LAST=no-trailing-newline' >> "$WORK/fixture.env"
 
 # Stub go: dumps its environment and arguments to files, prints nothing.
 mkdir -p "$WORK/bin"
@@ -36,6 +57,12 @@ env > "$WORK/go.env"
 printf '%s\n' "\$@" > "$WORK/go.args"
 EOF
 chmod +x "$WORK/bin/go"
+
+# Port preflight hook: default is "nothing listens"; tests never open sockets.
+printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/port-free"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/port-busy"
+chmod +x "$WORK/bin/port-free" "$WORK/bin/port-busy"
+export DEV_NATIVE_PORT_CHECK="$WORK/bin/port-free"
 
 # Fake library and model so the success path passes the presence checks.
 mkdir -p "$WORK/lib" "$WORK/model"
@@ -71,13 +98,30 @@ assert_env "GOTOOLCHAIN=local"
 assert_env "ORT_LIBRARY_PATH=$WORK/lib/libonnxruntime.dylib"
 assert_env "JWT_SECRET=$SENTINEL_JWT"
 
+# Finding 3: values arrive unchanged; nothing in the file was executed.
+assert_env 'TRICKY_DOLLAR=pa$$word'
+assert_env "TRICKY_SUBST=\$(touch $WORK/MARKER_SUBST)"
+assert_env "TRICKY_TICK=\`touch $WORK/MARKER_TICK\`"
+assert_env "TRICKY_SEMI=a;touch $WORK/MARKER_SEMI;b"
+assert_env 'TRICKY_SPACE=hello   world  x'
+assert_env "TRICKY_DQ=double with 'single' inside"
+assert_env 'TRICKY_SQ=single with $HOME and "dq"'
+assert_env 'TRICKY_EQ=a=b=c'
+assert_env 'TRICKY_EMPTY='
+assert_env 'TRICKY_MISMATCH="open only'
+assert_env 'TRICKY_LAST=no-trailing-newline'
+for m in MARKER_SUBST MARKER_TICK MARKER_SEMI; do
+  [ ! -e "$WORK/$m" ] || fail "env file content was executed ($m created)"
+done
+if grep -qE '^(1BAD|BAD KEY|BAD)=' "$WORK/go.env"; then fail "invalid key names must be skipped"; fi
+
 # "Exactly the listed overrides and nothing else new": compare variable names
 # against a baseline (inherited env + fixture, no launcher).
-keys() { sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' | grep -vxE '_|PWD|OLDPWD|SHLVL|DEV_NATIVE_ENV_FILE' | sort -u; }
-BASE=$(PATH="$WORK/bin:$PATH" bash -c "set -a; source '$WORK/fixture.env'; env" | keys)
+keys() { sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' | grep -vxE '_|PWD|OLDPWD|SHLVL|DEV_NATIVE_ENV_FILE|DEV_NATIVE_PORT_CHECK' | sort -u; }
+BASE=$( { env; grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$WORK/fixture.env"; } | keys)
 GOT=$(keys < "$WORK/go.env")
 NEW=$(comm -13 <(echo "$BASE") <(echo "$GOT") | tr '\n' ' ')
-ALLOWED="DB_MANAGER_PORT GIN_PORT GOTOOLCHAIN LM_MODEL_PATH ORT_LIBRARY_PATH REDIS_PORT "
+ALLOWED="DB_MANAGER_PORT GIN_PORT GOTOOLCHAIN REDIS_PORT "
 # DB_*_PORT/HOST, REDIS_HOST, QDRANT_URL, GIN_DOMAIN are overrides of fixture keys, so only the rest are "new".
 [ "$NEW" = "$ALLOWED" ] || fail "unexpected new variables: [$NEW] (allowed [$ALLOWED])"
 
@@ -134,6 +178,27 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 for p in $(grep -E 'echo "dev-native' dev-native.sh | grep -oE '[A-Za-z0-9_./-]+/[A-Za-z0-9_.-]+\.(sh|md|template|py)'); do
   [ -e "$REPO_ROOT/$p" ] || [ -e "$p" ] || fail "error text cites a path that does not exist: $p"
 done
+
+# 9. Finding 2: the env file's LM_MODEL_PATH / ORT_LIBRARY_PATH never win; the
+# caller's own values (tests 1, 3, 4) and the native defaults do.
+if [ ! -f "$PWD/onnxruntime/lib/libonnxruntime.dylib" ]; then
+  if run "$WORK/f.out" "$WORK/f.err" ORT_LIBRARY_PATH= LM_MODEL_PATH="$WORK/model/"; then fail "default library absent, should fail"; fi
+  grep -q "$PWD/onnxruntime/lib/libonnxruntime.dylib" "$WORK/f.err" || fail "env file ORT_LIBRARY_PATH must not win over the native default"
+fi
+if [ ! -f "$PWD/lm_model/onnx-e5/model.onnx" ]; then
+  if run "$WORK/g.out" "$WORK/g.err" ORT_LIBRARY_PATH="$WORK/lib/libonnxruntime.dylib" LM_MODEL_PATH=; then fail "default model absent, should fail"; fi
+  grep -q "$PWD/lm_model/onnx-e5/model.onnx" "$WORK/g.err" || fail "env file LM_MODEL_PATH must not win over the native default"
+fi
+
+
+# 10. Port preflight: something already on 8088 -> refuse, point at decision 0002.
+if run "$WORK/h.out" "$WORK/h.err" DEV_NATIVE_PORT_CHECK="$WORK/bin/port-busy" \
+  ORT_LIBRARY_PATH="$WORK/lib/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/"; then
+  fail "launcher should refuse when 8088 is already in use"
+fi
+grep -q "0002-phase1-phase2-one-stack-at-a-time.md" "$WORK/h.err" || fail "port message should cite decision 0002"
+grep -q "8088" "$WORK/h.err" || fail "port message should name the port"
+[ ! -f "$WORK/go.env" ] || fail "go ran despite busy port"
 
 # 7. No container commands.
 if grep -vE '^\s*#' dev-native.sh | grep -qE 'docker[ -]compose|docker +(run|compose|start|up)'; then
