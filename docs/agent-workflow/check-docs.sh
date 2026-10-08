@@ -17,4 +17,8 @@ done < <(grep -oE '\]\(([^)#]+)' MEMORY.md | sed 's/](//' | grep -v '^http' || t
 if grep -nE 'pk\.[A-Za-z0-9._-]{20,}|sk-[A-Za-z0-9]{20,}' CLAUDE.md AGENTS.md MEMORY.md >/dev/null; then
   fail "possible secret found in docs trio"
 fi
+# the native-dev runbook must keep its pre-run review of both mounted directories
+RB=docs/agent-workflow/phase2-native-dev-runbook.md
+grep -q 'git status --short Taipei-City-Dashboard-BE Taipei-City-Dashboard-FE' "$RB" || fail "runbook lost the git status review step"
+grep -q 'git diff --stat -- Taipei-City-Dashboard-BE Taipei-City-Dashboard-FE' "$RB" || fail "runbook lost the git diff review step"
 echo PASS
