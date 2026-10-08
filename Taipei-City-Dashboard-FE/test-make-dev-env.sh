@@ -36,5 +36,18 @@ MAPBOX_KEY_FILE="$WORK/nope.txt" ENV_LOCAL_OUT="$OUT" ./make-dev-env.sh >/dev/nu
 MAPBOX_KEY_FILE="$WORK/empty.txt" ENV_LOCAL_OUT="$OUT" ./make-dev-env.sh >/dev/null 2>&1 && bad "should fail on empty key file"
 [ -e "$OUT" ] && bad "output created despite empty key"
 
+# 5. symlink at the output path is refused (dangling and to an existing file)
+rm -f "$OUT"
+ln -s "$WORK/victim-new" "$OUT"
+MAPBOX_KEY_FILE="$KEY" ENV_LOCAL_OUT="$OUT" ./make-dev-env.sh >"$WORK/o5" 2>"$WORK/e5" && bad "should refuse dangling symlink"
+[ -e "$WORK/victim-new" ] && bad "dangling symlink target was created"
+grep -q "$SENTINEL" "$WORK/o5" "$WORK/e5" && bad "token leaked (dangling symlink path)"
+rm -f "$OUT"
+echo "PRECIOUS" > "$WORK/victim-old"
+ln -s "$WORK/victim-old" "$OUT"
+MAPBOX_KEY_FILE="$KEY" ENV_LOCAL_OUT="$OUT" ./make-dev-env.sh >/dev/null 2>&1 && bad "should refuse symlink to existing file"
+[ "$(cat "$WORK/victim-old")" = "PRECIOUS" ] || bad "symlink target was modified"
+rm -f "$OUT"
+
 [ "$fail" -eq 0 ] && echo "PASS"
 exit "$fail"
