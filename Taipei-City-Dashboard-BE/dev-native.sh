@@ -12,6 +12,21 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+# Phase 1 and Phase 2 never run at the same time (decision 0002): refuse when
+# something already listens on the backend port. DEV_NATIVE_PORT_CHECK is a
+# test hook: a command run as `<cmd> <host> <port>`, exit 0 means "in use".
+port_in_use() {
+  if [ -n "${DEV_NATIVE_PORT_CHECK:-}" ]; then
+    "$DEV_NATIVE_PORT_CHECK" 127.0.0.1 8088
+  else
+    nc -z 127.0.0.1 8088 >/dev/null 2>&1
+  fi
+}
+if port_in_use; then
+  echo "dev-native: 127.0.0.1:8088 is already in use (is the Phase 1 dashboard-be container still running?). Phase 1 and Phase 2 run one at a time; see docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md" >&2
+  exit 1
+fi
+
 # The caller's own model/library locations win over everything. The Docker
 # environment file carries container paths for these two names, so it must
 # never decide them.

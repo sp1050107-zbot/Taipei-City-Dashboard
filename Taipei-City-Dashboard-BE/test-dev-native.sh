@@ -191,6 +191,15 @@ if [ ! -f "$PWD/lm_model/onnx-e5/model.onnx" ]; then
 fi
 
 
+# 10. Port preflight: something already on 8088 -> refuse, point at decision 0002.
+if run "$WORK/h.out" "$WORK/h.err" DEV_NATIVE_PORT_CHECK="$WORK/bin/port-busy" \
+  ORT_LIBRARY_PATH="$WORK/lib/libonnxruntime.dylib" LM_MODEL_PATH="$WORK/model/"; then
+  fail "launcher should refuse when 8088 is already in use"
+fi
+grep -q "0002-phase1-phase2-one-stack-at-a-time.md" "$WORK/h.err" || fail "port message should cite decision 0002"
+grep -q "8088" "$WORK/h.err" || fail "port message should name the port"
+[ ! -f "$WORK/go.env" ] || fail "go ran despite busy port"
+
 # 7. No container commands.
 if grep -vE '^\s*#' dev-native.sh | grep -qE 'docker[ -]compose|docker +(run|compose|start|up)'; then
   fail "launcher must not run docker or docker compose"
