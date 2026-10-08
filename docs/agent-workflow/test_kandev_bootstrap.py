@@ -20,13 +20,31 @@ def test_unreachable_raises_friendly_error():
             raise AssertionError("expected SystemExit when Kandev is unreachable")
 
 
+def test_archived_tasks_are_not_recreated():
+    """Archived seed cards (P1-xx) are hidden from the default task list; ensure_tasks must still see them."""
+    archived = [{"id": f"id-{t['title'].split(' ')[0]}", "title": t["title"], "description": t["desc"]} for t in SEED_TASKS]
+    posts = []
+
+    def fake_call(method, path, body=None):
+        if method == "GET" and path.endswith("/tasks?include_archived=true"):
+            return {"tasks": archived}
+        if method == "GET" and path.endswith("/tasks"):
+            return {"tasks": []}          # the default list hides archived tasks
+        posts.append((method, path))
+        return {}
+
+    with patch.object(kb, "call", fake_call):
+        kb.ensure_tasks("ws", "wf", "backlog", "repo")
+    assert posts == [], f"archived seed cards were recreated or patched: {posts}"
+
+
 def snapshot():
     ws = [w for w in call("GET", "/workspaces")["workspaces"] if w["name"] == WS_NAME]
     assert len(ws) == 1, f"expected exactly 1 workspace named {WS_NAME}, got {len(ws)}"
     ws = ws[0]
     wfs = [w for w in call("GET", "/workflows")["workflows"] if w["workspace_id"] == ws["id"]]
     repos = call("GET", f"/workspaces/{ws['id']}/repositories")["repositories"]
-    tasks = call("GET", f"/workspaces/{ws['id']}/tasks")["tasks"]
+    tasks = kb.list_tasks(ws["id"])   # archived cards are still part of the state
     return ws, wfs, repos, tasks
 
 
@@ -136,7 +154,7 @@ def test_sync_creates_moves_and_is_idempotent():
 
     def fake_call(method, path, body=None):
         calls.append((method, path, body))
-        if method == "GET" and path.endswith("/tasks"):
+        if method == "GET" and path.endswith("/tasks?include_archived=true"):
             return {"tasks": list(store.values())}
         if method == "POST" and path == "/tasks":
             t = {"id": "t%d" % (len(store) + 1), "title": body["title"], "description": body["description"],
