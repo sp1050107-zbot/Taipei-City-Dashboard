@@ -4,7 +4,7 @@
 
 **Blocked by:** 09 Native dev runbook and environment ready.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 **Read first (nothing else is assumed):** `AGENTS.md`, `GLOSSARY.md`, `.scratch/phase2-hybrid-dev/spec.md`, `docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md`, `docs/decisions/0003-phase2-execution-engine-and-gates.md`, and the plan `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` (the working draft of the how; reference it by Task number, do not copy it). The plan is on `develop` once the P2-00 branch has been merged; if it is not there yet, stop and ask the owner.
 
@@ -12,14 +12,25 @@
 
 ## Acceptance criteria
 
-- [ ] The verifier is a new session that did not implement any ticket 01 to 09.
-- [ ] Backend starts natively and stays up (no fatal exit on ONNX Runtime or the embedding model); readiness probe on the backend dashboard route (with trailing slash) succeeds; databases and Redis connect.
-- [ ] Frontend serves on 8080 and proxies to the local backend, not production.
+- [x] The verifier is a new session that did not implement any ticket 01 to 09.
+- [x] Backend starts natively and stays up (no fatal exit on ONNX Runtime or the embedding model); readiness probe on the backend dashboard route (with trailing slash) succeeds; databases and Redis connect.
+- [x] Frontend serves on 8080 and proxies to the local backend, not production.
 - [ ] Dashboard page, map page and admin page load.
-- [ ] Frontend HMR time and backend restart time are measured and recorded as numbers.
+- [x] Frontend HMR time and backend restart time are measured and recorded as numbers.
 - [ ] A breakpoint is hit on the frontend and on the backend; the tool used is recorded.
 - [ ] The return-to-Phase-1 section is executed and works.
-- [ ] A secret scan of all staged changes is clean and the frontend local environment file is ignored by git.
+- [x] A secret scan of all staged changes is clean and the frontend local environment file is ignored by git.
 - [ ] **Admin login is confirmed by the owner personally; no agent logs in or reads the admin password.** Until the owner reports, this item is UNVERIFIED.
-- [ ] Every UNVERIFIED item from the spec is either proven with command output or left explicitly marked UNVERIFIED with the reason, including: ONNX Runtime 1.23.2 compatibility, host Go build, Node 21 install, `.env.local` non-leak, and the status code of `POST /component` when the Qdrant collection is missing.
-- [ ] No code is changed by this ticket; findings that need a fix become new tickets.
+- [x] Every UNVERIFIED item from the spec is either proven with command output or left explicitly marked UNVERIFIED with the reason, including: ONNX Runtime 1.23.2 compatibility, host Go build, Node 21 install, `.env.local` non-leak, and the status code of `POST /component` when the Qdrant collection is missing.
+- [x] No code is changed by this ticket; findings that need a fix become new tickets.
+
+## Answer
+
+Verdict of the fresh verifier session: **ACCEPTED WITH UNVERIFIED ITEMS**. Nothing failed. The ticket stays `claimed` until the owner does the open steps below. Report and screenshots: `docs/agent-workflow/evidence/phase2/10-acceptance.md`.
+
+Proven: backend stays up and answers the readiness probe (200) with both databases and Redis connected and no fatal exit on ONNX Runtime or the model; frontend on 8080 proxies to the local backend (identical body to the backend's own route, nothing points at the production site); dashboard page renders with no console errors; map page renders; HMR push measured at 12, 17 and 103 ms (server push only, not browser repaint); backend restart 1.15 to 1.78 s with a warm Go build cache; working tree clean, local env file, `onnxruntime`, `lm_model` and `node_modules` ignored; ONNX Runtime 1.23.2 with the project's Go binding, host Go 1.27.1, Node 21.7.3 and `npm ci` all worked in practice; `POST /api/v1/vector/component` without a Qdrant collection returned 404 and `POST /api/v1/component/` returned 403 unauthenticated; the `gtfs_bundle` warning also appears in the Phase 1 backend logs, so it is not caused by Phase 2.
+
+Open, left unticked on purpose (owner steps): the admin page was never seen (`/admin` redirects to the dashboard when not logged in), admin login, debugger breakpoints on both sides, and the return-to-Phase-1 section (needs the owner's approval because it runs the init container that downloads npm packages and replaces `node_modules`). `/geo_server/` requests did not happen while loading the map page, so whether the layers are blank is still UNVERIFIED.
+
+Corrections made from the findings: the AI search route is `POST /api/v1/vector/component` (GLOSSARY, spec and runbook fixed); the runbook now states the measured timings and what they do and do not measure. Follow-ups, not fixed here: the missing Qdrant collection `query_charts` and the missing `gtfs_bundle` table exist in Phase 1 as well.
+

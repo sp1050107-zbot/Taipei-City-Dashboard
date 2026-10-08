@@ -1,0 +1,57 @@
+# Ticket 10: Phase 2 acceptance report (independent verifier)
+
+Date: 2026-10-08. Branch: develop. Verifier did not implement tickets 01-09. No code, config or ticket file was changed; no commit, no push, no docker state change. The only state changes were the allowed ones: temporary one-line edits to two frontend src files (reverted, `git status --short` shows no tracked change) and three restarts of the native backend (left running and ready).
+
+## VERDICT: ACCEPTED WITH UNVERIFIED ITEMS
+
+No acceptance check failed. Not proven (see table): debugger breakpoints (item 5), return-to-Phase-1 (item 6, NOT RUN), owner admin login (item 8), the admin UI itself (redirects when not logged in), and `/geo_server/...` requests (never triggered by the pages without login or a data layer). The ticket's own criteria "breakpoint hit" and "return-to-Phase-1 executed" cannot be closed by this verifier; they need the owner.
+
+## Results
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Backend up and stays up | PASS | `lsof -nP -iTCP:8088 -sTCP:LISTEN` -> `main 6488 ... 127.0.0.1:8088 (LISTEN)` (child of `go run main.go` 6476). Readiness `curl .../api/v1/dashboard/` -> 200. be.log: `database.go:82 localhost database connected` (x2, MANAGER and DASHBOARD), `redis.go:38 Redis connected`; grep for Fatal/panic/onnx -> 0 hits. After my 3 restarts the listener (PID 10645) was still up 5 s later; restart log has 0 fatal/panic. |
+| 2 | Frontend on 8080, proxies to local BE | PASS | `curl http://127.0.0.1:8080/` -> 200. `/api/dev/dashboard/` -> 200 and body md5 `4b268730b6818163b6089bfa7c86222e`, identical to the backend's own `/api/v1/dashboard/` (same md5). `vite.server-config.js` (non-Docker branch): host 127.0.0.1, port 8080, proxy `/api/dev` -> `env.VITE_LOCAL_BE_URL || "http://localhost:8088"`, rewrite `/dev` -> `/v1`. `grep -c -i citydashboard fe.log` -> 0. fe.log: `VITE v5.2.9 ready in 632 ms`, Local `http://127.0.0.1:8080/`. (The local env file may set VITE_LOCAL_BE_URL; it was not read. The identical body hash from the live proxy shows the local backend is what answers.) |
+| 3a | Dashboard page | PASS | `/dashboard` -> `?index=ltc_care_tpe&city=taipei`; renders charts (行政區圖, 長照指標 19%/36%/55%/191%, etc.). Console: only vite debug lines, 0 errors. All 257 requests 200; API calls `/api/dev/contributor/`, `/dashboard/`, `/dashboard/ltc_care_tpe`, `/component/214..218/chart?city=taipei|metrotaipei` all 200. Only non-127.0.0.1 host: `fonts.googleapis.com` (stylesheet, status not visible cross-origin). No `/geo_server/` request. Screenshot: `10-dashboard-page.jpg`. |
+| 3b | Map page | PASS (renders) / geo_server UNVERIFIED | `/mapview` -> 1 mapbox canvas, side panel with layer toggles, API `/api/dev/dashboard/map-layers-metrotaipei` etc. all 200. Console errors: only `User denied Geolocation` (browser pane, x2). Toggling the first layer fired only `/api/dev/component/217/chart` (200); `read_network_requests urlPattern=geo_server` -> none, and none to `mapbox.com` either. Basemap area is dark/empty in the screenshot (no tile requests were observed; the Mapbox key was not inspected). So the status of `/geo_server/...` requests is UNVERIFIED (not triggered). Screenshot: `10-map-page.jpg`. |
+| 3c | Admin page | UNVERIFIED (UI) | Not logged in (rule). `/admin` redirects (router: `/admin` -> `/admin/dashboard`; guard sends unauthenticated users to `/dashboard?index=ltc_care_tpe&city=taipei`). The page that loads is the dashboard, so the admin UI itself was not seen. Screenshot of the redirect: `10-admin-redirects-to-dashboard.jpg`. Note: qa-probe expects `/admin`, `/dashboard`, `/mapview` as routes. |
+| 4a | HMR timing | PASS (see caveat) | Spec claim "about 1 second". Method: Node 21.7.3 WebSocket client (`--experimental-websocket`, subprotocol `vite-hmr`) on the live Vite server; append one comment line to `src/assets/utilityFunctions/jsonToCsv.js`, measure ms until Vite pushes the HMR message. 3 trials: **17 ms, 12 ms, 103 ms** (message type `full-reload`, because that util module is not an HMR boundary). First attempt, polling the module URL with a cache-busting query every 50 ms: **4, 2, 2 ms** (Vite serves transformed source immediately). Caveat: this measures server-side detection to push, not browser repaint; the owner-visible time (save to screen update) is the sum of this plus browser reload/patch and was not measured. Reverted with `git checkout --`; `git status --short` shows no tracked change. A second file (`SendIcon.vue`, trailing HTML comment) produced no update (compiled output unchanged), reverted the same way. |
+| 4b | Backend restart timing | PASS | Spec claim "a few seconds". Method: kill listener PID and its `go run` parent, wait for port free, `nohup bash Taipei-City-Dashboard-BE/dev-native.sh`, poll `/api/v1/dashboard/` every 100 ms until 200. 3 trials: **1.78 s, 1.37 s, 1.15 s** (start of script to HTTP 200). Hot Go build cache, no source change; a real code change adds compile time. Backend left running: PID 10645 listening on 127.0.0.1:8088, readiness 200, frontend proxy 200, Redis connected, 0 fatal/panic. New logs (in the scratchpad dir): `be-restart-1.log`..`be-restart-3.log`; the backend now logs to `be-restart-3.log`. |
+| 5 | Debugger breakpoints (FE and BE) | UNVERIFIED | Needs an interactive IDE and browser DevTools; headless verifier cannot hit or see a breakpoint. Owner steps below. |
+| 6 | Return to Phase 1 | NOT RUN | Needs owner approval: the init container `dashboard-fe-init` downloads npm packages and replaces the macOS `node_modules`, and it would take down the running Phase 2 stack. Not executed. |
+| 7 | Hygiene | PASS | `git status --short` -> no tracked change (only my new, untracked evidence files). `git check-ignore -q` exit codes: `Taipei-City-Dashboard-FE/.env.local` 0 (ignored), `Taipei-City-Dashboard-BE/onnxruntime` 0, `Taipei-City-Dashboard-BE/lm_model` 0, `Taipei-City-Dashboard-FE/node_modules` 0. Tracked check: `git ls-files --error-unmatch Taipei-City-Dashboard-FE/.env.local` exit 1 (not tracked). `git ls-files | grep -E "node_modules\|onnxruntime\|lm_model"` -> only `Taipei-City-Dashboard-BE/onnxruntime.sha256` (a checksum file, intended). File contents not read. Ticket's "secret scan of staged changes": nothing is staged (clean tree); not a full scan. |
+| 8 | Admin login | UNVERIFIED | Owner's personal step; see Owner steps. |
+| 9 | Spec UNVERIFIED items | see below | |
+| 10 | Extra checks | PASS | `docker logs dashboard-be 2>&1 \| grep -c gtfs_bundle` -> 1 and be.log -> 1: the `relation "gtfs_bundle" does not exist (SQLSTATE 42P01)` warning (`Transit service init failed`) is pre-existing in Phase 1, not caused by native run; it is non-fatal. Redis password consistency: `Redis connected` in be.log (env file not read). |
+
+### Item 9 detail
+
+| Spec item | Result | Evidence |
+|-----------|--------|----------|
+| (i) ONNX Runtime 1.23.2 with the project's Go binding | PROVEN for load and embedding | `models/qdrant.go:99-102` calls `ort.SetSharedLibraryPath(ORT_LIBRARY_PATH)` then `ort.InitializeEnvironment()` and `log.Fatalf`s on error; backend started and survived 4 starts. `POST /api/v1/vector/component` with `{"query":"test"}` (no credentials) returned HTTP 404 with body `qdrant returned status 404 Not Found ... Collection \`query_charts\` doesn't exist!`, meaning the request got past query embedding and reached Qdrant. Note: the model-session creation is not individually logged; this is inferred from the controller path (embedding happens before the Qdrant call), not from a log line. |
+| (ii) host Go 1.27.1 builds and runs it | PROVEN | `go version` -> `go1.27.1 darwin/arm64`; `go run` binary (`.../go-build/.../main`) is the live listener. |
+| (iii) Node 21 installs on macOS | PROVEN | `~/.local/node-v21.7.3/bin/node -v` -> v21.7.3; `node_modules/@rollup` contains `rollup-darwin-arm64`; Vite 5.2.9 serves. |
+| (iv) frontend local env file cannot leak | PROVEN (ignore status) | item 7: ignored (exit 0), not tracked (exit 1). |
+| (v) status of POST /component when Qdrant collection missing / unauthenticated | PROVEN | The route is `POST /api/v1/vector/component` (router.go `configureLMRoutes`), not `/api/v1/component`. Missing collection, no credentials: **404**. `POST /api/v1/component` (no slash) -> 307 redirect to `/api/v1/component/`; `POST /api/v1/component/` (the component admin route) unauthenticated -> **403** `{"message":"Unauthorized"}`. Spec/runbook text should name the right path. |
+
+## Findings that need a ticket
+
+1. Spec/runbook name `POST /api/v1/component` for the AI vector search; the real path is `/api/v1/vector/component`. Fix the wording in spec, runbook and ticket 10.
+2. Missing Qdrant collection `query_charts` makes the vector search return 404 (not a 5xx or an empty list); also non-fatal Transit init warning (`gtfs_bundle` missing). Both are pre-existing Phase 1 behavior. Consider a ticket for seeding or documenting them if the owner wants working AI search and transit in Phase 2.
+3. Runbook claim "HMR about 1 second" is not what was measured (12-103 ms to the HMR push); update the runbook to describe how to time it (browser repaint) or relax the claim. The measuring method (Node WebSocket to Vite) could become a small script if the owner wants repeatable timing.
+4. `/admin` and `/geo_server/...` could not be checked without login or a data layer; consider a documented admin-seeded test path for later verification.
+5. Map basemap shows no Mapbox tile requests in the headless pane; whether the Mapbox key is valid in Phase 2 is unverified (the key file was not read).
+6. `10-*.jpg` screenshots are low-resolution copies of the browser pane screenshots (0.4 to 0.7 scale); `screencapture` is unavailable in this environment.
+
+## Owner steps
+
+1. Admin login (item 8): open `http://127.0.0.1:8080/dashboard`, click "登入" and sign in. The credentials are in `docker/.env` as `DASHBOARD_DEFAULT_USERNAME` and `DASHBOARD_DEFAULT_PASSWORD` (not read by the verifier). After login open `http://127.0.0.1:8080/admin`, confirm the admin sidebar and a table (users, dashboards, etc.) load; check the browser console for errors. Report PASS/FAIL back.
+2. Backend breakpoint (item 5): in the IDE, run `Run and Debug` (dlv) on `Taipei-City-Dashboard-BE/main.go` (stop the native `dev-native.sh` backend first; port 8088 must be free; env must come from the same variables as `dev-native.sh`), set a breakpoint in a handler such as `controllers.GetAllDashboards`, then `curl http://127.0.0.1:8088/api/v1/dashboard/` and confirm the breakpoint is hit. Record the tool.
+3. Frontend breakpoint (item 5): open `http://127.0.0.1:8080/dashboard` in Chrome DevTools -> Sources, open a source file under `src/` (for example `store/contentStore.js`), set a breakpoint, reload and confirm it hits. Record the tool.
+4. Return to Phase 1 (item 6): approve and run the runbook section "回到 Phase 1" (Ctrl-C the native backend and frontend, `docker compose -f docker-compose-init.yaml up dashboard-fe-init` from `docker/`, then `docker start dashboard-be dashboard-fe`). It downloads npm packages and replaces `node_modules`; do it only when you accept that.
+5. Optionally exercise the map with a layer that uses a geoserver source and report the `/geo_server/...` status codes.
+
+## Files created by this ticket
+
+- `docs/agent-workflow/evidence/phase2/10-acceptance.md` (this file)
+- `docs/agent-workflow/evidence/phase2/10-dashboard-page.jpg`, `10-map-page.jpg`, `10-admin-redirects-to-dashboard.jpg`

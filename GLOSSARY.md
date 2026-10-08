@@ -13,7 +13,7 @@
 ## 後端必要元件
 - **ONNX Runtime** — 後端啟動時必載的共享函式庫；缺少時 `log.Fatalf` 結束。路徑由 `ORT_LIBRARY_PATH` 指定（預設 `/usr/lib/libonnxruntime.so`）。
 - **嵌入模型** — `intfloat/multilingual-e5-base` 的 ONNX 版，位於 `LM_MODEL_PATH`（`model.onnx` 與 `tokenizer.json`）。啟動必載，沒有備案。
-- **AI 元件搜尋** — `POST /component`，查詢 Qdrant。Qdrant 掛掉只讓這個請求回錯，不影響後端啟動；不在 Phase 2 驗收範圍。
+- **AI 元件搜尋** — `POST /api/v1/vector/component`，查詢 Qdrant。Qdrant 掛掉只讓這個請求回錯，不影響後端啟動；不在 Phase 2 驗收範圍。
 
 ## 工作流程
 - **票** — `.scratch/<feature>/issues/<NN>-<slug>.md` 的 markdown 檔，是事實來源；有 `Status:` 與 `Blocked by:`。

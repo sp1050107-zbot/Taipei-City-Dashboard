@@ -99,7 +99,7 @@ Status: ready-for-agent
 
 ## Out of Scope
 
-- Populating Qdrant (`vector-db-upgrade`) and the AI component search (`POST /component`).
+- Populating Qdrant (`vector-db-upgrade`) and the AI component search (`POST /api/v1/vector/component`).
 - nginx, pgAdmin, any production or cloud deployment.
 - Re-initialising the databases or changing sample data.
 - A hot-reload tool for the backend.
@@ -114,7 +114,7 @@ Status: ready-for-agent
   2. Whether the host Go (1.27.1) builds and runs this project cleanly with the local toolchain.
   3. Whether Node 21 plus the existing lock file installs cleanly on macOS arm64.
   4. That the frontend local environment file and the Mapbox token cannot leak (depends on the gitignore ticket landing first and being tested).
-  5. The HTTP status `POST /component` returns when the Qdrant collection does not exist (affects only the out-of-scope feature).
+  5. The HTTP status `POST /api/v1/vector/component` returns when the Qdrant collection does not exist (affects only the out-of-scope feature).
 - **Working draft of the how**: `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` on branch `feature/p2-00-phase-2-far`, commit `1813acae`. This spec references it and does not repeat its content.
 - **Known gaps in the current plan** (found while cross-checking this spec on 2026-10-07; the "revise the plan to match this spec" ticket must close them):
   1. Task 4 downloads the official macOS ONNX Runtime 1.23.2 release but the plan contains **no SHA256 verification** and no prompt before the download. This spec requires both (user stories 14 and 15).
