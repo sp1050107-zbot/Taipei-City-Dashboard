@@ -52,7 +52,7 @@
 | B24 | 8 | 我誤判「dashboards: 0」 | 解析方式錯 | API 依群組回傳：public 0、taipei 2、metrotaipei 3、personal 0（未登入） | ✅ |
 | B25 | 9 | 沒用 Aside／`/qa-only` 完整流程，改用 Playwright（gstack 的 `node_modules`、快取的 headless Chromium） | 首次 `Cannot find module 'playwright'` → 設 `NODE_PATH=~/gstack/node_modules` | 三頁取證與截圖；只測「載入/渲染/無 console 錯誤/無 4xx」，**沒測互動、行動版、登入後頁面** | 🟡 |
 | B26 | 9 | 管理員登入沒驗證 | 密碼只在 `docker/.env`，hook 禁止代理讀取 | 標為「未驗證」；只驗證路由存活（錯誤帳密回 401）與管理員存在（`auth_users=1`）；請你自己登入 | ❓⏳ |
-| B27 | 9 | 前端會把瀏覽資料送到上游 GA | `index.html:31,39` 的 `G-0KD9XLZ7W3` | 只記錄，列為 B 階段第一批客製候選 | 🟡 |
+| B27 | 9 | 前端會把瀏覽資料送到上游 GA | `index.html:31,39` 的 `G-0KD9XLZ7W3` | 只記錄，列為 B 階段第一批客製候選 → 已於 F1 處理 | ✅ |
 | B28 | 10 | `gsd-extract-learnings`、`gsd-pause-work` 依賴 GSD 階段目錄與 `STATE.md`，本專案沒有 | 工作流程規格 | 以相同格式手寫 `LEARNINGS-phase1.md`、`HANDOFF-phase1.md`；略過 STATE 更新與估時校準 | 🟡 |
 
 ## C. 最終全分支審查（全新 context、最強模型）與修正
@@ -104,6 +104,41 @@
 14. `gsd-extract-learnings` 與 `gsd-pause-work` 以手寫同格式檔案代替；保留 worktree。
 15. 最終審查修復輪後不再重審。
 
+## F. 部署後的本機整備（2026-10-08：頁面完整性檢查、停用 GA、登入、YouBike 真實資料）
+
+來源：使用者要求檢查 `ltc_care_tpe` 頁面與其餘公開儀表板，之後依序處理。這一節的指令與數字都是當天實際執行的輸出。
+
+| # | 狀況 | 原因/證據 | 處理 | 狀態 |
+|---|---|---|---|---|
+| F1 | 每頁都向 `googletagmanager.com`、`analytics.google.com` 送請求（B27） | `index.html` 載入 gtag.js；`src/` 有 12 個檔案直接呼叫 `gtag(...)` | 移除載入與 config，保留 no-op `function gtag(){}`（整個刪掉會 `ReferenceError`）。`feature/disable-ga` → `develop`（`d03a1e9`）。重新載入驗證：外部來源只剩 `fonts.googleapis.com`，0 個 4xx/5xx，0 個 console 錯誤 | ✅ |
+| F2 | 個人儀表板與管理後台只看到「台北通登入」 | `LogIn.vue` 已內建 email＋密碼模式，`handleSwitchMode` 綁在 TUIC logo 的 `@click.shift`；後端 `POST /auth/login` 直接比對本機 DB，不經台北通。台北通需要 `VITE_TAIPEIPASS_*`，本機未設定 | 不改程式碼。使用方式：開登入視窗，Shift＋點 logo。**尚未實際點過，管理員登入仍待使用者驗證** | 🟡 |
+| F3 | YouBike 卡片寫「每 10 分更新、即時資料」但永遠不變 | `tran_ubike_realtime` 最新一筆 2025-02-19（seed 快照）；本機沒有任何排程容器 | 見 F4–F8：以單容器 Airflow 跑 `R0051-3` | ✅ |
+| F4 | 官方 Airflow compose 本機不適用 | 各服務 `mem_limit` 合計約 23 GB，Docker 只有 7.7 GiB（當時已用約 2.3 GiB） | 改單容器：SQLite＋SequentialExecutor＋只跑 scheduler，只掛共用程式碼與 `R0051_3`。實測記憶體約 330 MiB（預估 1.5–2 GiB 偏高） | ✅ |
+| F5 | 第一次建置失敗：`fiona` 無 aarch64 wheel | `pip index versions fiona` 有 1.10.1，但 `--only-binary` 找不到 py3.12 aarch64 的檔 | Dockerfile 先裝 `gdal-bin libgdal-dev build-essential` 再編譯。映像 3.65 GB。第一次我用 `docker build -q`，把錯誤訊息吃掉了，要改非靜默才看得到原因 | ✅ |
+| F6 | `etl` 任務最後一步失敗：`relation "dataset_info" does not exist` | 抓取、轉換、寫入 `tran_ubike_realtime` 都已成功（1528→1813 筆）；`update_dataset_info` 在 `etl` 之後才執行，但 `etl` 內部就更新該表。repo 與 seed 都沒有它的 DDL | 依兩處程式碼用到的欄位推出 DDL（型別是推測，非上游原版）：`docs/agent-workflow/airflow/dataset_info.sql`，建立後重跑成功 | ✅ |
+| F7 | `dataset_info.lasttime_in_data` 永遠是空的 | DAG 以 `WHERE airflow_dag_id = 'R0051-3'` 更新，資料列存的是 `proj_city_dashboard_R0051-3`，比對不到 | 上游小問題，只影響紀錄欄位，不處理 | 🟡 |
+| F8 | **地圖圖層的 YouBike 仍是舊資料** | `youbike_realtime` 是靜態檔 `Taipei-City-Dashboard-FE/public/mapData/youbike_realtime.geojson`，前端以 `/mapData/<index>.geojson` 直接讀，不經資料庫 | 未處理。要更新需另寫「資料庫→geojson」匯出（座標來自 `R0051_4` 站點表） | 🟡 |
+| F9 | 雙北選項的 YouBike 只有一半是新資料 | 該圖表會加總 `tran_ubike_realtime_new_tpe`；新北的 DAG（`youbike_station_realtime_usage_and_availability`）沒開 | 未處理 | 🟡 |
+| F10 | `docker exec ... psql` 在 `verify-youbike.sh` 沒輸出 | 腳本以 stdin 餵 SQL，但 `docker exec` 沒加 `-i` | 加 `-i` | ✅ |
+| F11 | 結果驗證：圖表數字 | 「在站車輛」由 31% 變 29%，等於 13391/(13391+33448)；第一個自動排程 `scheduled__2026-10-08T02:20:00` success，最新資料時間距當下約 1 分鐘 | 無 | ✅ |
+
+### 我自己的失誤或不準確
+1. 計畫的記憶體預估（1.5–2 GiB）偏高，實測約 330 MiB。
+2. README 寫的 DAG 名稱 `R0051-3` 是錯的，實際是 `proj_city_dashboard_R0051-3`（已修）。
+3. 使用者的建立金鑰指令在 zsh 失敗（`read: -p: no coprocess`）：zsh 的 `read` 不支援 `-p`，是我給了 bash 專用語法。結果那一步沒執行，`tdx-key.txt` 先前就存在，權限是 644（我已改 600）；`&&…||` 讓 `.git/info/exclude` 多加了一行重複（無害）。
+4. 第一個 commit 標題寫了三件事，但實際只含 `dataset_info.sql`（`cf17765b`），之後補了一個內容正確的 commit。pro-workflow 的 commit hook 要求標題 ≤72 字元，第一次被擋是因為我寫了 73。
+5. 瀏覽器窗格曾被隱藏導致截圖逾時，改用頁內腳本取資料；瀏覽器 console 會累積先前頁面的錯誤，判讀要先重新載入。
+6. 剛啟動時 YouBike 量表圖曾空白，是渲染較慢；重新載入後顯示 29%。
+
+### 頁面完整性檢查（Phase 1 驗收之外的補查）
+- DB 有 8 筆儀表板，公開的 5 個都逐頁檢查過：頁面請求全 200、組件都有資料；`/mapview` 底圖與自行車道圖層正常，console 只有瀏覽器定位被拒；4 個地圖資料檔皆 200（488／211／1528／2922 筆）。
+- 個人儀表板 3 筆（`收藏組件`×2、`我的新儀表板`）需登入，未檢查。
+- Phase 1 記錄的 `/mapview` 7 筆 console 錯誤重現不出來（推測是定位被拒加被擋掉的 Google 請求，未逐筆比對）。
+- seed 數字與單位未核對來源（例：全市年齡分區各區人口只有 25–340）。
+
+### 憑證處理
+`tdx-key.txt`（兩行 `CLIENT_ID=`、`CLIENT_SECRET=`）已列入 `.git/info/exclude`，權限 600；以 compose `env_file` 注入容器，我沒有讀取過內容，只驗證存在、長度與被忽略。使用者貼過一張含遮罩金鑰的截圖（中間被 `*` 遮住），不視為外洩，但建議之後不要再貼。
+
 ## E. 仍待處理（來源：本表）
 
 - ⏳ 核准合併 `feature/make-env`（`cd ~/Taipei-City-Dashboard && git merge --no-ff feature/make-env`），之後 `git worktree remove ~/Taipei-City-Dashboard-worktrees/make-env && git branch -d feature/make-env`
@@ -112,4 +147,7 @@
 - ⏳ 是否設定本機 git `user.name`／`user.email`；是否處理 A11（gstack 升級／routing）
 - ❓ A5：Codex 端 80 處 `.claude` 路徑的實際影響
 - 🟡 C 節 13 個 Minor：5 項已於 Phase 2 啟動時修掉（5/6/7/8/10/12，共 6 項，見各列狀態）；餘 1–4（`make-env.sh`，待合併）、9（可攜性）留 Phase 2 計畫評估；11、13 無需修
-- B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、B27（GA 追蹤）進入 Phase 2 計畫時處理
+- B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、（B27 GA 已於 F1 處理）進入 Phase 2 計畫時處理
+- ⏳ F2：登入頁 Shift＋點 logo 切換成 email＋密碼，實際登入一次，確認管理員可用
+- 🟡 F8／F9：YouBike 地圖圖層匯出、新北 YouBike DAG（需要時再做）
+- 🟡 Phase 2 已有多個 `feature/phase2-*` 分支與 `feature/p1-*`、`feature/p2-00-*` 殘留 worktree／分支，合併或清理前先確認
