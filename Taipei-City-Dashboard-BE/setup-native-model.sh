@@ -52,8 +52,15 @@ else
     echo "SHA256 mismatch for $ORT_ASSET (expected $EXPECTED, got $ACTUAL); nothing extracted" >&2
     exit 4
   fi
-  mkdir -p onnxruntime
-  tar -xzf "$TMP/ort.tgz" -C onnxruntime --strip-components=1
+  # The release archive nests everything one or two levels deep (for example
+  # ./onnxruntime-osx-arm64-1.23.2/lib/...), so extract aside, find the real
+  # root (the directory that holds lib/libonnxruntime.dylib) and copy it over.
+  mkdir -p "$TMP/x" onnxruntime
+  tar -xzf "$TMP/ort.tgz" -C "$TMP/x"
+  FOUND="$(find "$TMP/x" -maxdepth 4 -path '*/lib/libonnxruntime.dylib' | head -n 1)"
+  [ -n "$FOUND" ] || { echo "archive does not contain lib/libonnxruntime.dylib; nothing installed" >&2; exit 5; }
+  cp -R "$(dirname "$(dirname "$FOUND")")"/. onnxruntime/
+  [ -e "$ORT_LIB" ] || { echo "install failed: $ORT_LIB is missing after extraction" >&2; exit 5; }
   echo "installed onnxruntime -> $ORT_LIB (SHA256 verified)"
 fi
 

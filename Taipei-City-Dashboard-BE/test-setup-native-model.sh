@@ -10,7 +10,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$WORK/pkg/onnxruntime-osx-arm64-1.23.2/lib"
 echo fake > "$WORK/pkg/onnxruntime-osx-arm64-1.23.2/lib/libonnxruntime.dylib"
-tar -czf "$WORK/fixture.tgz" -C "$WORK/pkg" onnxruntime-osx-arm64-1.23.2
+tar -czf "$WORK/fixture.tgz" -C "$WORK/pkg" .
 FIXTURE_SHA="$(shasum -a 256 "$WORK/fixture.tgz" | cut -d' ' -f1)"
 
 fresh() { # fresh <case>: empty sandbox with the script and stubs first on PATH
@@ -71,6 +71,18 @@ run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null
 [ -f "$D/lm_model/onnx-e5/model.onnx" ] || fail "model.onnx not copied"
 [ -f "$D/lm_model/onnx-e5/tokenizer.json" ] || fail "tokenizer.json not copied"
 grep -q "dashboard-be-dev" "$D/docker.log" || fail "model not taken from the dev image"
+
+# 4a: a verified archive that holds no lib/libonnxruntime.dylib -> exit 5, nothing installed
+mkdir -p "$WORK/pkgbad/onnxruntime-osx-arm64-1.23.2/include"
+echo fake > "$WORK/pkgbad/onnxruntime-osx-arm64-1.23.2/include/x.h"
+tar -czf "$WORK/bad.tgz" -C "$WORK/pkgbad" .
+BAD_SHA="$(shasum -a 256 "$WORK/bad.tgz" | cut -d' ' -f1)"
+fresh nolib
+echo "$BAD_SHA" > "$D/onnxruntime.sha256"
+rc=0; run env FIXTURE_TGZ="$WORK/bad.tgz" ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >"$D/nolib.out" 2>&1 || rc=$?
+[ "$rc" = 5 ] || fail "archive without the library: expected exit 5, got $rc"
+[ ! -e "$D/onnxruntime/lib/libonnxruntime.dylib" ] || fail "library appeared although the archive has none"
+grep -q "installed onnxruntime" "$D/nolib.out" && fail "success message printed although nothing was installed"
 
 # 4b: uppercase expected digest still matches (case-insensitive compare)
 fresh upper
