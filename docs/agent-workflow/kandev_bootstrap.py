@@ -146,9 +146,17 @@ def ensure_steps(wf_id):
     return {s["name"]: s for s in (call("GET", f"/workflows/{wf_id}/workflow/steps")["steps"] or [])}
 
 
+def list_tasks(ws_id):
+    """All tasks in the workspace, archived ones included.
+
+    The default list hides archived tasks; matching on it would re-create every archived seed card.
+    """
+    return call("GET", f"/workspaces/{ws_id}/tasks?include_archived=true")["tasks"]
+
+
 def ensure_tasks(ws_id, wf_id, backlog_id, repo_id):
     """Upsert the seed tasks by their P1-xx key: create missing ones, update stale title/description."""
-    have = {t["title"].split(" ")[0]: t for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
+    have = {t["title"].split(" ")[0]: t for t in list_tasks(ws_id)}
     for t in SEED_TASKS:
         key = t["title"].split(" ")[0]
         cur = have.get(key)
@@ -195,7 +203,7 @@ def ticket_cards(root=REPO_PATH):
 
 def sync_ticket_cards(ws_id, wf_id, steps, repo_id, root=REPO_PATH):
     """Upsert one card per ticket and move it to the column its Status maps to. Idempotent."""
-    have = {t["title"].split(" ")[0]: t for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
+    have = {t["title"].split(" ")[0]: t for t in list_tasks(ws_id)}
     for c in ticket_cards(root):
         target = steps[c["column"]]["id"]
         cur = have.get(c["key"])
