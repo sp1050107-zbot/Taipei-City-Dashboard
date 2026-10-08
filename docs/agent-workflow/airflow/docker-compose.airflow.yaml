@@ -1,0 +1,46 @@
+# Single-container Airflow (scheduler only, SQLite + SequentialExecutor) for the local YouBike pipeline.
+# Run from the integration checkout (~/Taipei-City-Dashboard), never from a worktree:
+#   docker compose --env-file docker/.env -f docs/agent-workflow/airflow/docker-compose.airflow.yaml up -d --build
+# Needs: the br_dashboard network + postgres-data (Phase 1 stack) and ~/Taipei-City-Dashboard/tdx-key.txt
+# (two lines: CLIENT_ID=... / CLIENT_SECRET=...), which is git-ignored and injected as container env only.
+services:
+  airflow:
+    image: dashboard-airflow:local
+    build: .
+    container_name: dashboard-airflow
+    restart: unless-stopped
+    mem_limit: 2g
+    env_file:
+      - ../../../tdx-key.txt
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/state/airflow.db
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/state/logs
+      AIRFLOW_CONN_POSTGRES_DEFAULT: postgresql://${DB_DASHBOARD_USER}:${DB_DASHBOARD_PASSWORD}@${DB_DASHBOARD_HOST:-postgres-data}:${DB_DASHBOARD_PORT:-5432}/${DB_DASHBOARD_DBNAME}
+      AIRFLOW_VAR_DEFAULT_EMAIL_LIST: "[]"
+      AIRFLOW_VAR_HTTPS_PROXY_ENABLED: "false"
+    # tdx-key.txt uses neutral names; Airflow reads Variables from AIRFLOW_VAR_<NAME>.
+    command:
+      - bash
+      - -c
+      - |
+        export AIRFLOW_VAR_TDX_CLIENT_ID="$$CLIENT_ID" AIRFLOW_VAR_TDX_CLIENT_SECRET="$$CLIENT_SECRET"
+        airflow db migrate && exec airflow scheduler
+    volumes:
+      - airflow_state:/opt/airflow/state
+      - airflow_data:/opt/airflow/data
+      # Only the shared code + the YouBike (Taipei) DAG; every other DAG stays out of the parse path.
+      - ../../../Taipei-City-Dashboard-DE/dags/operators:/opt/airflow/dags/operators:ro
+      - ../../../Taipei-City-Dashboard-DE/dags/utils:/opt/airflow/dags/utils:ro
+      - ../../../Taipei-City-Dashboard-DE/dags/settings:/opt/airflow/dags/settings:ro
+      - ../../../Taipei-City-Dashboard-DE/dags/proj_city_dashboard/R0051_3:/opt/airflow/dags/proj_city_dashboard/R0051_3:ro
+
+volumes:
+  airflow_state:
+  airflow_data:
+
+networks:
+  default:
+    name: br_dashboard
+    external: true
