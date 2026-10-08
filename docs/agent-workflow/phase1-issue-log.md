@@ -111,7 +111,7 @@
 | # | 狀況 | 原因/證據 | 處理 | 狀態 |
 |---|---|---|---|---|
 | F1 | 每頁都向 `googletagmanager.com`、`analytics.google.com` 送請求（B27） | `index.html` 載入 gtag.js；`src/` 有 12 個檔案直接呼叫 `gtag(...)` | 移除載入與 config，保留 no-op `function gtag(){}`（整個刪掉會 `ReferenceError`）。`feature/disable-ga` → `develop`（`d03a1e9`）。重新載入驗證：外部來源只剩 `fonts.googleapis.com`，0 個 4xx/5xx，0 個 console 錯誤 | ✅ |
-| F2 | 個人儀表板與管理後台只看到「台北通登入」 | `LogIn.vue` 已內建 email＋密碼模式，`handleSwitchMode` 綁在 TUIC logo 的 `@click.shift`；後端 `POST /auth/login` 直接比對本機 DB，不經台北通。台北通需要 `VITE_TAIPEIPASS_*`，本機未設定 | 不改程式碼。使用方式：開登入視窗，Shift＋點 logo。**尚未實際點過，管理員登入仍待使用者驗證** | 🟡 |
+| F2 | 個人儀表板與管理後台只看到「台北通登入」 | `LogIn.vue` 已內建 email＋密碼模式，`handleSwitchMode` 綁在 TUIC logo 的 `@click.shift`；後端 `POST /auth/login` 直接比對本機 DB，不經台北通。台北通需要 `VITE_TAIPEIPASS_*`，本機未設定 | 不改程式碼。使用方式：開登入視窗，Shift＋點 logo。**2026-10-09 使用者實際登入成功**（Shift＋點 logo → email＋密碼；`/admin/dashboard` 顯示 `admin` 與臺北儀表板清單，證據 `evidence/phase2/10-admin-dashboard-owner.webp`；在 Phase 1 容器堆疊上，原生堆疊未重測） | ✅ |
 | F3 | YouBike 卡片寫「每 10 分更新、即時資料」但永遠不變 | `tran_ubike_realtime` 最新一筆 2025-02-19（seed 快照）；本機沒有任何排程容器 | 見 F4–F8：以單容器 Airflow 跑 `R0051-3` | ✅ |
 | F4 | 官方 Airflow compose 本機不適用 | 各服務 `mem_limit` 合計約 23 GB，Docker 只有 7.7 GiB（當時已用約 2.3 GiB） | 改單容器：SQLite＋SequentialExecutor＋只跑 scheduler，只掛共用程式碼與 `R0051_3`。實測記憶體約 330 MiB（預估 1.5–2 GiB 偏高） | ✅ |
 | F5 | 第一次建置失敗：`fiona` 無 aarch64 wheel | `pip index versions fiona` 有 1.10.1，但 `--only-binary` 找不到 py3.12 aarch64 的檔 | Dockerfile 先裝 `gdal-bin libgdal-dev build-essential` 再編譯。映像 3.65 GB。第一次我用 `docker build -q`，把錯誤訊息吃掉了，要改非靜默才看得到原因 | ✅ |
@@ -148,7 +148,7 @@
 - ✅ A5：已於 2026-10-08 經大里同意以唯讀方式驗證（證據 `evidence/a5-codex-agents-md-probe.md`）；剩餘 ❓：Codex 審 diff 的實際品質、Kandev 的 Codex agent profile 能否唯讀；gstack `/codex` 經讀原始碼確認預設 `read-only`（未實跑，見證據檔）
 - 🟡 C 節 13 個 Minor：5 項已於 Phase 2 啟動時修掉（5/6/7/8/10/12，共 6 項，見各列狀態）；餘 1–4（`make-env.sh`，待合併）、9（可攜性）留 Phase 2 計畫評估；11、13 無需修
 - B21（CUDA torch）、B12（`node_modules`）、B18（PostGIS 模擬）、（B27 GA 已於 F1 處理）進入 Phase 2 計畫時處理
-- ⏳ F2：登入頁 Shift＋點 logo 切換成 email＋密碼，實際登入一次，確認管理員可用
+- ✅ F2：使用者已於 2026-10-09 登入管理後台成功（Phase 1 容器堆疊）
 - 🟡 F8／F9：YouBike 地圖圖層匯出、新北 YouBike DAG（需要時再做）
 - ✅ 殘留分支／worktree（2026-10-08）：已刪除已合併的 `feature/phase2-*`（含 05b、11b、fix）、`kandev-ticket-cards`、`disable-ga`、`airflow-youbike`；Kandev 的 9 個任務（P1-01…08、P2-00）已用 `POST /tasks/:id/archive` 封存，worktree 與分支由 Kandev 一併移除，對話紀錄仍可讀取（抽查 P1-01=15、P1-08=27、P2-00=100 則）；`qa-docs` 經使用者同意丟棄（最後 commit `1dfdad49`，工作樹乾淨）。仍保留 `phase2-integration` worktree（`feature/phase2-hybrid-dev`，屬其他 session，P2-10 可能用到）
 

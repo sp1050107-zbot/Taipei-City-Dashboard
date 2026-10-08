@@ -15,12 +15,12 @@
 - [x] The verifier is a new session that did not implement any ticket 01 to 09.
 - [x] Backend starts natively and stays up (no fatal exit on ONNX Runtime or the embedding model); readiness probe on the backend dashboard route (with trailing slash) succeeds; databases and Redis connect.
 - [x] Frontend serves on 8080 and proxies to the local backend, not production.
-- [ ] Dashboard page, map page and admin page load.
+- [x] Dashboard page, map page and admin page load. (Admin page: shown by the owner's screenshot on 2026-10-09, see below.)
 - [x] Frontend HMR time and backend restart time are measured and recorded as numbers.
 - [ ] A breakpoint is hit on the frontend and on the backend; the tool used is recorded.
 - [x] The return-to-Phase-1 section is executed and works (2026-10-09, owner approved; evidence `docs/agent-workflow/evidence/phase2/10-return-to-phase1.md`).
 - [x] A secret scan of all staged changes is clean and the frontend local environment file is ignored by git.
-- [ ] **Admin login is confirmed by the owner personally; no agent logs in or reads the admin password.** Until the owner reports, this item is UNVERIFIED.
+- [x] **Admin login is confirmed by the owner personally; no agent logs in or reads the admin password.** Until the owner reports, this item is UNVERIFIED. Confirmed 2026-10-09 by the owner's screenshot, on the Phase 1 container stack (same databases and same backend code); not repeated on the native stack.
 - [x] Every UNVERIFIED item from the spec is either proven with command output or left explicitly marked UNVERIFIED with the reason, including: ONNX Runtime 1.23.2 compatibility, host Go build, Node 21 install, `.env.local` non-leak, and the status code of `POST /component` when the Qdrant collection is missing.
 - [x] No code is changed by this ticket; findings that need a fix become new tickets.
 
@@ -34,3 +34,8 @@ Open, left unticked on purpose (owner steps): the admin page was never seen (`/a
 
 Corrections made from the findings: the AI search route is `POST /api/v1/vector/component` (GLOSSARY, spec and runbook fixed); the runbook now states the measured timings and what they do and do not measure. Follow-ups, not fixed here: the missing Qdrant collection `query_charts` and the missing `gtfs_bundle` table exist in Phase 1 as well.
 
+### Update 2026-10-09 (owner)
+
+- Owner logged in as `admin` by Shift-clicking the TUIC logo in the login dialog (email and password mode) and opened `http://127.0.0.1:8080/admin/dashboard?city=taipei`. The admin console shows the sidebar (儀表板設定, 組件設定, 問題回報, 系統總覽), the user name `admin` in the header, and the 臺北儀表板 list with `map-layers-taipei` [217] and `ltc_care_tpe` [214, 215, 216, 218]. Evidence: `docs/agent-workflow/evidence/phase2/10-admin-dashboard-owner.webp`. The agent did not log in and did not read the password.
+- This ran on the Phase 1 container stack, because the stack was returned to Phase 1 the same day (`evidence/phase2/10-return-to-phase1.md`). The native stack uses the same databases and the same backend code, but the login was not repeated there.
+- Still open and unticked on purpose: debugger breakpoints on the frontend and on the backend (needs the native stack, `dlv`, and the owner's IDE and browser DevTools).
