@@ -1,7 +1,7 @@
 # 0004 Codex 獨立審查與相互驗證
 
 日期：2026-10-08　來源：使用者（大里）指示，Claude Code 與 OpenAI Codex 要「相互驗證協作」，Codex 的價值不可被削弱。
-統一規則的**唯一來源**：`/Users/opsai/Documents/sp1050107-zbot/kandev-assistant/docs/plans/2026-09-26-agent-collaboration-evaluation.md`（其中「相互驗證規則」一節補寫中）。本文只引用，不複製內文；該節補完後以它為準，兩者有出入時回報，不自行裁定。
+統一規則的**唯一來源**：`/Users/opsai/Documents/sp1050107-zbot/kandev-assistant/docs/plans/2026-09-26-agent-collaboration-evaluation.md` §8.1 相互驗證規則。本文只引用，不複製內文；兩者有出入時回報，不自行裁定。
 
 ## 取代範圍
 取代 `MEMORY.md` 與 `docs/decisions/0001-phase1-deploy-approach.md` 中「本輪不接 Codex」「Codex skipped」的限定。那些限定只在 Phase 1 當時有效；0001 本文不重寫。
