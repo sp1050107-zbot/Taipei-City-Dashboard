@@ -116,6 +116,19 @@ def test_ticket_cards_parse_files():
         assert cards["other-feature-02"]["column"] == "Backlog"
 
 
+def test_card_titles_fit_kandev_limit():
+    """Kandev rejects titles over 60 characters; the key must stay at the front and the result be stable."""
+    with tempfile.TemporaryDirectory() as root:
+        make_ticket(root, "phase2-hybrid-dev", 7, "long", "Close the gitignore gap for the frontend local environment file", "resolved", True)
+        make_ticket(root, "phase2-hybrid-dev", 8, "short", "Short title", "resolved", True)
+        cards = {c["key"]: c for c in kb.ticket_cards(root)}
+        long_title = cards["P2-07"]["title"]
+        assert len(long_title) <= 60, f"{len(long_title)} chars: {long_title!r}"
+        assert long_title.startswith("P2-07 Close the gitignore gap"), long_title
+        assert cards["P2-08"]["title"] == "P2-08 Short title"
+        assert [c["title"] for c in kb.ticket_cards(root)] == [c["title"] for c in kb.ticket_cards(root)]
+
+
 def test_sync_creates_moves_and_is_idempotent():
     steps = {c["name"]: {"id": "step-" + c["name"]} for c in COLUMNS}
     calls = []
@@ -163,6 +176,7 @@ if __name__ == "__main__":
     test_unreachable_raises_friendly_error()
     test_column_for_status()
     test_ticket_cards_parse_files()
+    test_card_titles_fit_kandev_limit()
     test_sync_creates_moves_and_is_idempotent()
     print("state:", test_state())
     print("ticket cards:", test_ticket_cards_live())
