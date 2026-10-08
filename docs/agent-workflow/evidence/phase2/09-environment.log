@@ -1,0 +1,96 @@
+# ticket 09 environment steps (2026-10-08T00:40:28Z)
+## before
+dashboard-be 8088->8080/tcp, [::]:8088->8080/tcp
+dashboard-fe 8080->80/tcp, [::]:8080->80/tcp
+redis 6379/tcp
+qdrant 6333-6334->6333-6334/tcp, [::]:6333-6334->6333-6334/tcp
+postgres-data 5432/tcp
+postgres-manager 5432->5432/tcp, [::]:5432->5432/tcp
+kandev-fork 127.0.0.1:38529->38429/tcp
+## stop phase 1 app containers
+dashboard-fe
+dashboard-be
+## recreate redis and postgres-data (volumes kept)
+time="2026-10-08T08:40:31+08:00" level=warning msg="/Users/opsai/Taipei-City-Dashboard/docker/docker-compose-db.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+time="2026-10-08T08:40:32+08:00" level=warning msg="Found orphan containers (dashboard-be, dashboard-fe, dashboard-be-init-dashboard, dashboard-be-init-manager, dashboard-fe-init) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container redis Recreate 
+ Container postgres-data Recreate 
+ postgres-data The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested 
+ Container redis Recreated 
+ Container postgres-data Recreated 
+ Container postgres-data Starting 
+ Container redis Starting 
+ Container postgres-data Started 
+ Container redis Started 
+## after
+redis 127.0.0.1:6379->6379/tcp Up Less than a second
+postgres-data 127.0.0.1:5433->5432/tcp Up Less than a second
+qdrant 6333-6334->6333-6334/tcp, [::]:6333-6334->6333-6334/tcp Up 2 days
+postgres-manager 5432->5432/tcp, [::]:5432->5432/tcp Up 2 days
+kandev-fork 127.0.0.1:38529->38429/tcp Up 5 days (healthy)
+## volumes still present
+postgres_data
+postgres_manager_data
+qdrant_data
+redis_data
+
+## setup-native-model.sh (owner-approved download, SHA256 pinned)
+About to download: onnxruntime-osx-arm64-1.23.2.tgz
+Source: https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-osx-arm64-1.23.2.tgz
+Download size is not known offline: read it from the release page before approving: https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+
+  0 9765k    0  8259    0     0  11845      0  0:14:04 --:--:--  0:14:04 11845
+100 9765k  100 9765k    0     0  9082k      0  0:00:01  0:00:01 --:--:-- 25.2M
+installed onnxruntime -> onnxruntime/lib/libonnxruntime.dylib (SHA256 verified)
+copied model files from dashboard-be-dev:latest -> lm_model/onnx-e5
+exit=0
+## results
+224 .
+96 ..
+656 config.json
+1110007849 model.onnx
+964 special_tokens_map.json
+17082734 tokenizer.json
+1177 tokenizer_config.json
+?? docs/agent-workflow/evidence/phase2/
+(git status above should be empty: outputs are ignored)
+
+## Node 21.7.3 (owner-approved download)
+downloaded 41.0 MB
+expected 165d3ba3500cfc8708f85d3815aaaa21ce418164c933d5419c30825ccad3a99c
+actual   165d3ba3500cfc8708f85d3815aaaa21ce418164c933d5419c30825ccad3a99c
+v21.7.3
+10.5.0
+
+## npm ci (owner-approved, Node v21.7.3)
+
+added 402 packages in 6s
+npm ci exit= elapsed=6s
+## platform binaries now
+rollup-darwin-arm64 
+node_modules size: 248 MB
+?? ../docs/agent-workflow/evidence/phase2/
+
+## make-dev-env.sh (reads the owner key file; never prints the token)
+wrote .env.local
+exit=0
+git status entries for the generated file (expect 0, it is ignored): 0
+untracked/tracked entries: 0
+
+## native processes started (2026-10-08T02:05:58Z)
+backend: dev-native.sh, ready (readiness probe 200) 5s after start; first start attempt failed with a Gin panic caused by an inline comment in the Docker env file (fixed, commit f52f3528)
+frontend: npm run dev under Node v21.7.3, Vite 5.2.9, ready in 632 ms, http://127.0.0.1:8080/ -> 200
+proxy: curl http://127.0.0.1:8080/api/dev/dashboard/ -> 200
+readiness: curl http://127.0.0.1:8088/api/v1/dashboard/ -> 200
+ports (listeners):
+com.docke 127.0.0.1:5433
+com.docke 127.0.0.1:6379
+main 127.0.0.1:8088
+node 127.0.0.1:8080
+backend log warning (non-fatal, pre-existing data issue): relation gtfs_bundle does not exist (transit service init)
+defects found while executing, both fixed with tests: ONNX archive layout (e86adf8c, merge 7a67a189), inline comments in env file (0ce3f418, merge f52f3528)
