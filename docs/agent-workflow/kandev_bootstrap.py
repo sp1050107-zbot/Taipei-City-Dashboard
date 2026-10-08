@@ -74,6 +74,7 @@ SEED_TASKS = [
 # description is only the file path (the file is the source of truth; Kandev is the owner's progress view).
 FEATURE_PREFIX = {"phase2-hybrid-dev": "P2"}   # unknown features use their own slug as the key prefix
 TICKET_WORKFLOW = "B 客製開發"
+MAX_TITLE = 60  # Kandev rejects longer task titles
 STATUS_COLUMN = {
     "ready-for-agent": "Backlog",
     "needs-triage": "Backlog",
@@ -180,9 +181,12 @@ def ticket_cards(root=REPO_PATH):
         feature = os.path.basename(os.path.dirname(os.path.dirname(path)))
         num = int(head.group(1))
         key = f"{FEATURE_PREFIX.get(feature, feature)}-{num:02d}"
+        title = f"{key} {head.group(2).strip()}"
+        if len(title) > MAX_TITLE:
+            title = title[:MAX_TITLE - 1].rstrip() + "…"
         cards.append({
             "key": key,
-            "title": f"{key} {head.group(2).strip()}",
+            "title": title,
             "desc": os.path.relpath(path, root),
             "column": column_for(status.group(1), "\n## Answer" in text),
         })
