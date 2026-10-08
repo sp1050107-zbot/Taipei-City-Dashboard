@@ -47,13 +47,18 @@ while IFS= read -r line || [ -n "$line" ]; do
     echo "dev-native: skipping a line with an invalid variable name in $ENV_FILE" >&2
     continue
   fi
-  if [ "${#value}" -ge 2 ]; then
-    first="${value:0:1}"
-    last="${value: -1}"
-    if { [ "$first" = '"' ] || [ "$first" = "'" ]; } && [ "$first" = "$last" ]; then
-      value="${value:1:${#value}-2}"
-    fi
-  fi
+  # Same value rules as the Docker env file: a quoted value keeps everything
+  # between its quotes (a trailing "# comment" after the closing quote is
+  # dropped); an unquoted value ends at the first "#" that follows whitespace.
+  case "$value" in
+    \"*)
+      if [[ "$value" =~ ^\"([^\"]*)\"[[:space:]]*(#.*)?$ ]]; then value="${BASH_REMATCH[1]}"; fi ;;
+    \'*)
+      if [[ "$value" =~ ^\'([^\']*)\'[[:space:]]*(#.*)?$ ]]; then value="${BASH_REMATCH[1]}"; fi ;;
+    *)
+      value="${value%%[[:space:]]#*}"
+      value="${value%"${value##*[![:space:]]}"}" ;;
+  esac
   export "$key=$value"
 done < "$ENV_FILE"
 

@@ -43,6 +43,12 @@ EOF
   echo "TRICKY_SQ='single with \$HOME and \"dq\"'"
   echo 'TRICKY_EQ=a=b=c'
   echo 'TRICKY_EMPTY='
+  echo 'COMMENT_PLAIN=debug # gin mode can be release(default)/debug/test'
+  printf 'COMMENT_TAB=value\t#tabbed comment\n'
+  echo 'COMMENT_HASHINSIDE=a#b'
+  echo 'COMMENT_QUOTED="keep # this"  # but not this'
+  echo "COMMENT_SQUOTED='keep # that' # drop"
+  echo 'COMMENT_ONLY= # nothing before the hash'
   echo 'TRICKY_MISMATCH="open only'
   echo '1BAD=never'
   echo 'BAD KEY=never'
@@ -108,6 +114,12 @@ assert_env "TRICKY_DQ=double with 'single' inside"
 assert_env 'TRICKY_SQ=single with $HOME and "dq"'
 assert_env 'TRICKY_EQ=a=b=c'
 assert_env 'TRICKY_EMPTY='
+assert_env 'COMMENT_PLAIN=debug'
+assert_env 'COMMENT_TAB=value'
+assert_env 'COMMENT_HASHINSIDE=a#b'
+assert_env 'COMMENT_QUOTED=keep # this'
+assert_env "COMMENT_SQUOTED=keep # that"
+assert_env 'COMMENT_ONLY='
 assert_env 'TRICKY_MISMATCH="open only'
 assert_env 'TRICKY_LAST=no-trailing-newline'
 for m in MARKER_SUBST MARKER_TICK MARKER_SEMI; do
