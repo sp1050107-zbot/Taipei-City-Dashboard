@@ -26,6 +26,7 @@
    git diff --stat -- Taipei-City-Dashboard-BE Taipei-City-Dashboard-FE
    ```
    出現不認得的變更就停下來檢查,不要往下執行。
+   原因:`docker/docker-compose.yaml` 把 `../Taipei-City-Dashboard-BE` 與 `../Taipei-City-Dashboard-FE` 以讀寫方式掛進 Phase 1 容器,容器內的程序可以改寫這兩個目錄的檔案;而 Phase 2 會在主機上直接執行這兩個目錄裡的 `dev-native.sh`、`setup-native-model.sh` 與 `go run`。所以第一次原生執行前,兩個目錄都要看過(每次從 Phase 1 切回來都建議再看一次)。
 2. **停掉 Phase 1 的應用容器**(只停,不刪):
    ```bash
    docker stop dashboard-fe dashboard-be
@@ -95,3 +96,14 @@
 - ONNX Runtime 1.23.2 與 Go 綁定的相容性、Go 1.27.1 編譯與執行、Node 21 在 macOS 上安裝,都以實測為準(票 10)。
 - 管理員登入由擁有者本人確認,agent 不登入、不讀密碼。
 - Node 21 已停止維護(非 LTS);選它是為了與 `package-lock.json` 的產生環境一致(決定 Q10)。
+
+## 5. 擁有者自行執行的冒煙步驟:後端掛載改唯讀(選用)
+
+票 12 沒有修改 compose 的掛載(離線無法證明唯讀的後端掛載下,容器內的 `go run` 仍能運作,**UNVERIFIED**)。擁有者可在整合 checkout 自行安全地試一次:
+
+1. `cd docker && docker compose stop dashboard-be`
+2. 編輯 `docker/docker-compose.yaml`,把後端那一行改成 `- ../Taipei-City-Dashboard-BE:/opt/Taipei-City-Dashboard-BE:ro`。
+3. `docker compose up -d dashboard-be`,等候啟動,然後 `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8088/api/v1/dashboard/`(與第 1 節相同的就緒探測)。
+4. 探測回 200 且 `docker logs dashboard-be` 沒有寫入錯誤(例如 read-only file system):保留變更並提交。否則還原該行,再 `docker compose up -d dashboard-be`。
+
+前端掛載(`dashboard-fe`)**必須維持讀寫**:Vite 開發伺服器會把快取寫進自己的目錄(例如 `node_modules/.vite`),唯讀會讓它起不來。
