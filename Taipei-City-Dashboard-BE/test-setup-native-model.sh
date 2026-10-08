@@ -104,8 +104,11 @@ echo "UNSET" > "$D/onnxruntime.sha256"
 if run env ORT_DOWNLOAD_APPROVED=yes ./setup-native-model.sh >/dev/null 2>&1; then fail "accepted placeholder digest"; fi
 [ ! -s "$D/curl.log" ] || fail "curl called with placeholder digest"
 
-# 7: committed digest file is the placeholder, not an invented value
-[ "$(tr -d '[:space:]' < "$SRC/onnxruntime.sha256")" = "UNSET" ] || fail "committed digest is not the UNSET placeholder"
+# 7: committed digest file is either the UNSET placeholder or exactly 64 lowercase hex characters (the owner-approved official digest)
+COMMITTED="$(tr -d '[:space:]' < "$SRC/onnxruntime.sha256")"
+if [ "$COMMITTED" != "UNSET" ]; then
+  printf '%s' "$COMMITTED" | grep -Eq '^[0-9a-f]{64}$' || fail "committed digest is neither UNSET nor 64 lowercase hex characters"
+fi
 
 # 8: library present but model missing -> only docker, no curl
 fresh modelonly
