@@ -1,0 +1,6 @@
+# Keep local env files (they hold the developer's Mapbox token) and the host's
+# node_modules out of the image build context. The Dockerfile runs `npm ci`
+# itself, so neither is needed.
+.env.local
+.env.*.local
+node_modules

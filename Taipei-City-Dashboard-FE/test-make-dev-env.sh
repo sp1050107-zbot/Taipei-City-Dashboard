@@ -49,5 +49,46 @@ MAPBOX_KEY_FILE="$KEY" ENV_LOCAL_OUT="$OUT" ./make-dev-env.sh >/dev/null 2>&1 &&
 [ "$(cat "$WORK/victim-old")" = "PRECIOUS" ] || bad "symlink target was modified"
 rm -f "$OUT"
 
+# 6. only a public-scope Mapbox token (pk. prefix) is accepted; the rejected
+# value is never printed and nothing is created
+for bad_val in "sk.FAKESECRETSCOPENOTAREALKEY999" "FAKENOPREFIXNOTAREALKEY777" "xpk.FAKEPREFIXINSIDENOTAREAL555"; do
+  rm -f "$OUT"
+  echo "$bad_val" > "$WORK/bad-key.txt"
+  MAPBOX_KEY_FILE="$WORK/bad-key.txt" ENV_LOCAL_OUT="$OUT" ./make-dev-env.sh >"$WORK/o6" 2>"$WORK/e6" && bad "should reject non-public token ($bad_val)"
+  [ -e "$OUT" ] && bad "output created for non-public token"
+  grep -q "$bad_val" "$WORK/o6" "$WORK/e6" && bad "rejected token value was printed"
+  grep -q "pk\." "$WORK/e6" || bad "rejection message should name the pk. prefix"
+done
+rm -f "$OUT"
+
+# 7. frontend build context: .dockerignore excludes local env files and
+# node_modules, and excludes nothing the Dockerfile's COPY lines need
+python3 - <<'PY' || bad ".dockerignore check failed"
+import fnmatch, subprocess, sys
+lines = [l.strip() for l in open(".dockerignore")] if __import__("os").path.exists(".dockerignore") else sys.exit("missing .dockerignore")
+pats = [l for l in lines if l and not l.startswith("#")]
+for want in (".env.local", ".env.*.local", "node_modules"):
+    if want not in pats:
+        sys.exit("missing .dockerignore entry: " + want)
+if any(p.startswith("!") for p in pats):
+    sys.exit("negations are not supported by this check")
+needed = subprocess.check_output(["git", "ls-files", "."], text=True).split("\n")
+needed = [n for n in needed if n]
+assert "package.json" in needed and "package-lock.json" in needed and any(n.startswith("src/") for n in needed)
+def excluded(path):
+    parts = path.split("/")
+    for i in range(1, len(parts) + 1):
+        sub = "/".join(parts[:i])
+        for p in pats:
+            q = p.rstrip("/").lstrip("/")
+            if fnmatch.fnmatch(sub, q) or fnmatch.fnmatch(parts[i-1], q):
+                return p
+    return None
+for n in needed:
+    p = excluded(n)
+    if p:
+        sys.exit("pattern %r excludes a needed build input: %s" % (p, n))
+PY
+
 [ "$fail" -eq 0 ] && echo "PASS"
 exit "$fail"

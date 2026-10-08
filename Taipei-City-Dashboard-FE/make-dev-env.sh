@@ -28,6 +28,15 @@ if [ -z "$TOKEN" ]; then
   exit 1
 fi
 
+# VITE_ variables are shipped to the browser, so only a public-scope Mapbox
+# token (pk. prefix) may be written. The value is never printed.
+case "$TOKEN" in
+  pk.*) ;;
+  *)
+    echo "key file does not hold a public Mapbox token (it must start with pk.): $KEY_FILE" >&2
+    exit 1 ;;
+esac
+
 umask 077
 # noclobber makes the redirect an exclusive create (O_EXCL): it fails on an
 # existing file and never follows a symlink, closing the check-then-write race.
