@@ -1,0 +1,97 @@
+# Phase 2 原生開發 runbook(票 09)
+
+資料庫、Redis、Qdrant 留在 Docker;前端(`npm run dev`)與後端(`go run`)在 macOS 主機原生執行。
+詞彙見 `GLOSSARY.md`;決定見 `docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md`。
+
+> **同一時間只跑 Phase 1 或 Phase 2 其中一種。** 前端用主機 8080、後端用主機 8088,兩個階段共用同樣的埠。
+> 本檔所有指令都在 `~/Taipei-City-Dashboard`(整合 checkout)執行;`docker compose` 只能在這裡跑(規則 7)。
+> docker 在這台機器上的路徑是 `~/.docker/bin/docker`。
+
+## 0. 前置條件
+
+| 項目 | 檢查 |
+|---|---|
+| `docker/.env` 存在(模式 600) | `ls -l docker/.env`(不要印內容) |
+| `mapbox-key.txt` 存在 | `ls -l mapbox-key.txt`(不要印內容) |
+| `dashboard-be-dev:latest` 映像檔存在 | `docker image ls dashboard-be-dev` |
+| 資料庫已初始化(Phase 1) | 不重跑初始化(規則 9) |
+| Node 21 | `~/.local/node-v21.7.3/bin/node -v` 應為 `v21.7.3` |
+| 後端用本機 Go | `GOTOOLCHAIN=local`(啟動器已設定) |
+
+## 1. 啟動 Phase 2
+
+1. **回顧 Phase 1 期間容器可能動過的檔案**(容器對後端、前端目錄有讀寫權限,見 `/cso` 發現):
+   ```bash
+   git status --short Taipei-City-Dashboard-BE Taipei-City-Dashboard-FE
+   git diff --stat -- Taipei-City-Dashboard-BE Taipei-City-Dashboard-FE
+   ```
+   出現不認得的變更就停下來檢查,不要往下執行。
+2. **停掉 Phase 1 的應用容器**(只停,不刪):
+   ```bash
+   docker stop dashboard-fe dashboard-be
+   ```
+3. **讓資料與 Redis 容器改成只綁本機埠**(volume 保留,不重跑初始化):
+   ```bash
+   cd docker && docker compose -f docker-compose-db.yaml up -d redis postgres-data && cd ..
+   docker ps --format '{{.Names}} {{.Ports}}' | grep -E 'redis|postgres-data'
+   ```
+   應看到 `127.0.0.1:6379->6379/tcp` 與 `127.0.0.1:5433->5432/tcp`。
+4. **一次性準備後端執行檔**(需要你先核准下載):
+   ```bash
+   ORT_DOWNLOAD_APPROVED=yes bash Taipei-City-Dashboard-BE/setup-native-model.sh
+   ```
+   官方 ONNX Runtime 1.23.2 會做 SHA256 驗證;模型從 `dashboard-be-dev:latest` 複製。
+5. **前端依賴與本機環境檔**(一次性):
+   ```bash
+   export PATH="$HOME/.local/node-v21.7.3/bin:$PATH"
+   cd Taipei-City-Dashboard-FE && npm ci && bash make-dev-env.sh && cd ..
+   ```
+   `npm ci` 會把 `node_modules` 換成 macOS 版本;產生 `.env.local` 不會覆蓋、不印出 token。
+6. **啟動後端**(終端機 A):
+   ```bash
+   bash Taipei-City-Dashboard-BE/dev-native.sh
+   ```
+   若 8088 已被占用,啟動器會拒絕並指向決定 0002。
+7. **啟動前端**(終端機 B):
+   ```bash
+   export PATH="$HOME/.local/node-v21.7.3/bin:$PATH"
+   cd Taipei-City-Dashboard-FE && npm run dev
+   ```
+   前端在 `http://127.0.0.1:8080`;`/api/dev` 代理到 `http://localhost:8088`(可用環境變數 `VITE_LOCAL_BE_URL` 覆蓋)。
+8. **就緒探測**:
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8088/api/v1/dashboard/   # 注意結尾斜線
+   curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
+   ```
+
+## 2. 日常開發與計時
+
+- **前端**:改 `src/` 下一行,Vite HMR 應在約 1 秒內更新。用 `date +%s.%N`(或手錶)記錄「存檔到畫面更新」的秒數。
+- **後端**:`go run` 沒有熱重載。改一行後在終端機 A 按 Ctrl-C,再重新執行 `dev-native.sh`;記錄「重新執行到就緒探測回 200」的秒數。
+- 中斷點:後端用 IDE 的 Run and Debug(dlv),前端用瀏覽器開發者工具的 Sources。記錄使用的工具。
+- 結果寫進 `docs/agent-workflow/evidence/phase2/`。
+
+## 3. 回到 Phase 1
+
+1. 在終端機 A、B 按 Ctrl-C 停掉原生後端與前端。
+2. **重建容器用的前端依賴**(Phase 2 的 `npm ci` 把 `node_modules` 換成 macOS 版本,容器會找不到對應的原生模組):
+   ```bash
+   cd docker && docker compose -f docker-compose-init.yaml up dashboard-fe-init && cd ..
+   ```
+3. 重新啟動應用容器:
+   ```bash
+   docker start dashboard-be dashboard-fe
+   curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8088/api/v1/dashboard/
+   ```
+4. `redis` 與 `postgres-data` 多開的 `127.0.0.1` 埠不需還原,對 Phase 1 無害。
+
+> **UNVERIFIED**:第 2 步在這份 runbook 寫成時尚未實測,票 10 的驗證者要實際執行並記錄結果。
+> 切換階段的代價:每次來回都要重裝一次前端依賴(幾分鐘)。
+
+## 4. 已知限制與 UNVERIFIED
+
+- 原生模式**不再代理 `/geo_server`**(Phase 1 容器模式本來就沒有):依賴該路徑的地圖圖層可能空白,票 10 的地圖頁驗收要實測並記錄。
+- `REDIS_PASSWORD` 在 `docker/.env` 的值必須與 Redis 容器一致(容器沒有密碼);票 10 確認。
+- ONNX Runtime 1.23.2 與 Go 綁定的相容性、Go 1.27.1 編譯與執行、Node 21 在 macOS 上安裝,都以實測為準(票 10)。
+- 管理員登入由擁有者本人確認,agent 不登入、不讀密碼。
+- Node 21 已停止維護(非 LTS);選它是為了與 `package-lock.json` 的產生環境一致(決定 Q10)。
