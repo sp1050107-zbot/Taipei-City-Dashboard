@@ -25,18 +25,11 @@ Testing: Jack Huang (Data Scientist), Ian Huang (Data Analysis Intern)
 			content="Taipei City Dashboard, Taipei Urban Intelligence Center, Department of Information Technology, Taipei City Government"
 		/>
 		<title>%VITE_APP_TITLE%</title>
-		<!-- Global tag (gtag.js) -->
-		<script
-			async
-			src="https://www.googletagmanager.com/gtag/js?id=G-0KD9XLZ7W3"
-		></script>
+		<!-- Local fork: Google Analytics disabled. gtag() is kept as a no-op because
+		     src/ calls it directly (event tracking); removing it would throw ReferenceError. -->
 		<script>
 			window.dataLayer = window.dataLayer || [];
-			function gtag() {
-				dataLayer.push(arguments);
-			}
-			gtag("js", new Date());
-			gtag("config", "G-0KD9XLZ7W3");
+			function gtag() {}
 		</script>
 	</head>
 	<body>
