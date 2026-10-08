@@ -1,9 +1,9 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import viteCompression from "vite-plugin-compression";
-import { resolveServerConfig } from "./vite.server-config.js";
+import { buildServerConfig } from "./vite.server-config.js";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [vue(), viteCompression()],
 	build: {
 		rollupOptions: {
@@ -22,5 +22,10 @@ export default defineConfig({
 		chunkSizeWarningLimit: 1600,
 	},
 	base: "/",
-	server: resolveServerConfig(process.env), // eslint-disable-line no-undef
-});
+	server: buildServerConfig({
+		mode,
+		root: process.cwd(), // eslint-disable-line no-undef
+		processEnv: process.env, // eslint-disable-line no-undef
+		loadEnv,
+	}),
+}));

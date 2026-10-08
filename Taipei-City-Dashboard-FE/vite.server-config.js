@@ -18,8 +18,9 @@ export function resolveServerConfig(env) {
 	}
 
 	return {
-		host: "0.0.0.0",
+		host: "127.0.0.1",
 		port: 8080,
+		strictPort: true,
 		proxy: {
 			"/api/dev": {
 				target: env.VITE_LOCAL_BE_URL || "http://localhost:8088",
@@ -28,4 +29,13 @@ export function resolveServerConfig(env) {
 			},
 		},
 	};
+}
+
+/**
+ * Merges the Vite-loaded local environment files (mode-aware, all keys) under
+ * the process environment (which wins) and resolves the server config.
+ * `loadEnv` is injected so tests need no Vite installation.
+ */
+export function buildServerConfig({ mode, root, processEnv, loadEnv }) {
+	return resolveServerConfig({ ...loadEnv(mode, root, ""), ...processEnv });
 }
