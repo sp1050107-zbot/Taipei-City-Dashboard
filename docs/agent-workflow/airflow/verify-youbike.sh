@@ -2,7 +2,7 @@
 # Read-only check of the YouBike pipeline. Run from the integration checkout. Never prints credentials.
 set -u
 D="${DOCKER:-docker}"
-psql_data() { "$D" exec postgres-data sh -c 'psql -U "$POSTGRES_USER" -d dashboard -tA' ; }
+psql_data() { "$D" exec -i postgres-data sh -c 'psql -U "$POSTGRES_USER" -d dashboard -tA' ; }
 
 echo "== airflow container"; "$D" ps --filter name=dashboard-airflow --format '{{.Names}}  {{.Status}}'
 echo "== TDX credentials present in container (names only)"
