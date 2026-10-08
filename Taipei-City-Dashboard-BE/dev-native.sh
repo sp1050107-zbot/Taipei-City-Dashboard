@@ -18,10 +18,29 @@ fi
 CALLER_ORT_LIBRARY_PATH="${ORT_LIBRARY_PATH:-}"
 CALLER_LM_MODEL_PATH="${LM_MODEL_PATH:-}"
 
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+# Read the environment file as plain data, never as shell code: no source,
+# no eval, so $, backticks, ; and quotes in a value stay literal. Each line is
+# KEY=VALUE (split at the first =); one pair of matching surrounding quotes is
+# stripped. Blank lines, comments and invalid key names are skipped.
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line%$'\r'}"
+  case "$line" in ''|'#'*) continue ;; esac
+  case "$line" in *=*) ;; *) continue ;; esac
+  key="${line%%=*}"
+  value="${line#*=}"
+  if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo "dev-native: skipping a line with an invalid variable name in $ENV_FILE" >&2
+    continue
+  fi
+  if [ "${#value}" -ge 2 ]; then
+    first="${value:0:1}"
+    last="${value: -1}"
+    if { [ "$first" = '"' ] || [ "$first" = "'" ]; } && [ "$first" = "$last" ]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+  export "$key=$value"
+done < "$ENV_FILE"
 
 export ORT_LIBRARY_PATH="${CALLER_ORT_LIBRARY_PATH:-$(pwd)/onnxruntime/lib/libonnxruntime.dylib}"
 export LM_MODEL_PATH="${CALLER_LM_MODEL_PATH:-$(pwd)/lm_model/onnx-e5/}"

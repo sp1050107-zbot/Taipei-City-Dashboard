@@ -30,6 +30,24 @@ LM_MODEL_PATH=/opt/lm_model/onnx-e5/
 ORT_LIBRARY_PATH=/opt/onnxruntime/lib/libonnxruntime.so
 EOF
 
+# Hostile values: the launcher must treat the env file as data, never as code.
+{
+  echo '# a comment line'
+  echo ''
+  echo 'TRICKY_DOLLAR=pa$$word'
+  printf 'TRICKY_SUBST=$(touch %s/MARKER_SUBST)\n' "$WORK"
+  printf 'TRICKY_TICK=`touch %s/MARKER_TICK`\n' "$WORK"
+  printf 'TRICKY_SEMI=a;touch %s/MARKER_SEMI;b\n' "$WORK"
+  echo 'TRICKY_SPACE=hello   world  x'
+  echo "TRICKY_DQ=\"double with 'single' inside\""
+  echo "TRICKY_SQ='single with \$HOME and \"dq\"'"
+  echo 'TRICKY_EQ=a=b=c'
+  echo 'TRICKY_EMPTY='
+  echo 'TRICKY_MISMATCH="open only'
+  echo '1BAD=never'
+  echo 'BAD KEY=never'
+} >> "$WORK/fixture.env"
+printf 'TRICKY_LAST=no-trailing-newline' >> "$WORK/fixture.env"
 
 # Stub go: dumps its environment and arguments to files, prints nothing.
 mkdir -p "$WORK/bin"
@@ -80,6 +98,22 @@ assert_env "GOTOOLCHAIN=local"
 assert_env "ORT_LIBRARY_PATH=$WORK/lib/libonnxruntime.dylib"
 assert_env "JWT_SECRET=$SENTINEL_JWT"
 
+# Finding 3: values arrive unchanged; nothing in the file was executed.
+assert_env 'TRICKY_DOLLAR=pa$$word'
+assert_env "TRICKY_SUBST=\$(touch $WORK/MARKER_SUBST)"
+assert_env "TRICKY_TICK=\`touch $WORK/MARKER_TICK\`"
+assert_env "TRICKY_SEMI=a;touch $WORK/MARKER_SEMI;b"
+assert_env 'TRICKY_SPACE=hello   world  x'
+assert_env "TRICKY_DQ=double with 'single' inside"
+assert_env 'TRICKY_SQ=single with $HOME and "dq"'
+assert_env 'TRICKY_EQ=a=b=c'
+assert_env 'TRICKY_EMPTY='
+assert_env 'TRICKY_MISMATCH="open only'
+assert_env 'TRICKY_LAST=no-trailing-newline'
+for m in MARKER_SUBST MARKER_TICK MARKER_SEMI; do
+  [ ! -e "$WORK/$m" ] || fail "env file content was executed ($m created)"
+done
+if grep -qE '^(1BAD|BAD KEY|BAD)=' "$WORK/go.env"; then fail "invalid key names must be skipped"; fi
 
 # "Exactly the listed overrides and nothing else new": compare variable names
 # against a baseline (inherited env + fixture, no launcher).
