@@ -11,12 +11,12 @@ def _service_block(text, name, next_name):
 
 def test_postgres_data_port_mapped():
     block = _service_block(COMPOSE.read_text(), "  postgres-data", "  postgres-manager")
-    assert '"5433:5432"' in block, "postgres-data must publish host port 5433 -> 5432"
+    assert '"127.0.0.1:5433:5432"' in block, "postgres-data must publish loopback 127.0.0.1:5433 -> 5432"
 
 
 def test_redis_port_mapped():
     block = _service_block(COMPOSE.read_text(), "  redis", "  postgres-data")
-    assert '"6379:6379"' in block, "redis must publish host port 6379 -> 6379"
+    assert '"127.0.0.1:6379:6379"' in block, "redis must publish loopback 127.0.0.1:6379 -> 6379"
 
 
 def test_postgres_manager_port_unchanged():

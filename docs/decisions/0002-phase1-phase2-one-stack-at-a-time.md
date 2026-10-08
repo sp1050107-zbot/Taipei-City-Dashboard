@@ -8,7 +8,7 @@ Phase 1 的容器 `dashboard-fe`（主機 8080）與 `dashboard-be`（主機 808
 ## 已決定
 1. 跑 Phase 2 期間，**停掉 `dashboard-fe` 與 `dashboard-be`**；`redis`、`postgres-data`、`postgres-manager`、`qdrant` 繼續運作。
 2. 主機原生 FE 用 8080，BE 用 `GIN_PORT=8088`，與 Phase 1 相同。
-3. `postgres-data` 開放主機埠 5433、`redis` 開放 6379（`postgres-manager` 已是 5432）。重建這兩個容器前先問使用者；volume 保留，不重跑初始化（規則 9）。
+3. `postgres-data` 開放主機埠 5433、`redis` 開放 6379，兩者都只綁定 127.0.0.1（loopback），不對區網開放（`postgres-manager` 已是 5432）。重建這兩個容器前先問使用者；volume 保留，不重跑初始化（規則 9）。
 4. 文件明寫「同一時間只跑 Phase 1 或 Phase 2」。
 5. runbook 要有「回到 Phase 1」一節：停掉主機 FE/BE，重新啟動兩個容器；多開的 5433、6379 不需還原。
 
