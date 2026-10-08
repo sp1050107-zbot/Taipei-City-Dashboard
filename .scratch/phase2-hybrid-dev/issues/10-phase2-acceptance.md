@@ -39,3 +39,10 @@ Corrections made from the findings: the AI search route is `POST /api/v1/vector/
 - Owner logged in as `admin` by Shift-clicking the TUIC logo in the login dialog (email and password mode) and opened `http://127.0.0.1:8080/admin/dashboard?city=taipei`. The admin console shows the sidebar (儀表板設定, 組件設定, 問題回報, 系統總覽), the user name `admin` in the header, and the 臺北儀表板 list with `map-layers-taipei` [217] and `ltc_care_tpe` [214, 215, 216, 218]. Evidence: `docs/agent-workflow/evidence/phase2/10-admin-dashboard-owner.webp`. The agent did not log in and did not read the password.
 - This ran on the Phase 1 container stack, because the stack was returned to Phase 1 the same day (`evidence/phase2/10-return-to-phase1.md`). The native stack uses the same databases and the same backend code, but the login was not repeated there.
 - Still open and unticked on purpose: debugger breakpoints on the frontend and on the backend (needs the native stack, `dlv`, and the owner's IDE and browser DevTools).
+
+### Update 2026-10-09 (backend corroboration of the owner's admin login)
+
+Checked by Claude from the Phase 1 backend container log and the manager database (read only; no password, hash, email or user name was read or printed): `POST /api/v1/auth/login` returned 200 at 23:37:27 UTC, followed by `GET /api/v1/user/me`, `GET /api/v1/user/1/viewpoint` and the dashboard chart requests, all 200; every request in the last 45 minutes returned 200. The manager database has exactly one user (id 1) with `is_admin = true`, `is_active = true`, `is_blacked = false`, and its `login_at` equals the login request time (23:37:27 UTC).
+
+What this does not show: the log contains no admin-console API requests after the login (the last request was at 23:37:40 UTC), so the owner's screenshot is the only evidence that the `/admin` pages rendered. Debugger breakpoints are still open.
+
