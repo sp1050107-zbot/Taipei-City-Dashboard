@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Create the Kandev workspace, repository, workflows, steps and seed tasks. Idempotent by name."""
+"""Create the Kandev workspace, repository, workflows, steps, seed tasks and the .scratch ticket cards. Idempotent by key."""
+import glob
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 
@@ -66,6 +68,21 @@ SEED_TASKS = [
     {"title": "P1-08 驗收與收尾", "exec": EXEC_LOCAL,
      "desc": f"計畫 Task 9、10（{PLAN}）。技能：/qa-only、verification-before-completion、gsd-extract-learnings。完成條件：docs/agent-workflow/evidence/phase1-verification.md 逐項有證據，MEMORY.md 已更新。"},
 ]
+
+
+# Ticket cards: every .scratch/<feature>/issues/<NN>-<slug>.md has exactly one Kandev card whose
+# description is only the file path (the file is the source of truth; Kandev is the owner's progress view).
+FEATURE_PREFIX = {"phase2-hybrid-dev": "P2"}   # unknown features use their own slug as the key prefix
+TICKET_WORKFLOW = "B 客製開發"
+STATUS_COLUMN = {
+    "ready-for-agent": "Backlog",
+    "needs-triage": "Backlog",
+    "needs-info": "Backlog",
+    "claimed": "Build (worktree)",
+    "ready-for-human": "Merge-ready",
+    "resolved": "Done",
+    "wontfix": "Done",
+}
 
 
 def call(method, path, body=None):
@@ -144,6 +161,52 @@ def ensure_tasks(ws_id, wf_id, backlog_id, repo_id):
             call("PATCH", f"/tasks/{cur['id']}", {"title": t["title"], "description": t["desc"]})
 
 
+def column_for(status, has_answer):
+    """Kandev column for a ticket Status. A claimed ticket that already has an Answer awaits acceptance."""
+    if status == "claimed" and has_answer:
+        return "Verify"
+    return STATUS_COLUMN.get(status, "Backlog")
+
+
+def ticket_cards(root=REPO_PATH):
+    """Read every .scratch/*/issues/NN-slug.md under root and describe its card."""
+    cards = []
+    for path in sorted(glob.glob(os.path.join(root, ".scratch", "*", "issues", "[0-9][0-9]-*.md"))):
+        text = open(path, encoding="utf-8").read()
+        head = re.match(r"#\s*(\d+):\s*(.+)", text)
+        status = re.search(r"^\**Status:\**\s*(\S+)", text, re.M)
+        if not head or not status:
+            continue
+        feature = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        num = int(head.group(1))
+        key = f"{FEATURE_PREFIX.get(feature, feature)}-{num:02d}"
+        cards.append({
+            "key": key,
+            "title": f"{key} {head.group(2).strip()}",
+            "desc": os.path.relpath(path, root),
+            "column": column_for(status.group(1), "\n## Answer" in text),
+        })
+    return cards
+
+
+def sync_ticket_cards(ws_id, wf_id, steps, repo_id, root=REPO_PATH):
+    """Upsert one card per ticket and move it to the column its Status maps to. Idempotent."""
+    have = {t["title"].split(" ")[0]: t for t in call("GET", f"/workspaces/{ws_id}/tasks")["tasks"]}
+    for c in ticket_cards(root):
+        target = steps[c["column"]]["id"]
+        cur = have.get(c["key"])
+        if cur is None:
+            cur = call("POST", "/tasks", {
+                "workspace_id": ws_id, "workflow_id": wf_id, "workflow_step_id": steps["Backlog"]["id"],
+                "title": c["title"], "description": c["desc"], "executor_id": EXEC_LOCAL,
+                "repositories": [{"repository_id": repo_id, "base_branch": "develop"}],
+            })
+        elif cur["title"] != c["title"] or cur.get("description") != c["desc"]:
+            call("PATCH", f"/tasks/{cur['id']}", {"title": c["title"], "description": c["desc"]})
+        if cur.get("workflow_step_id") != target:
+            call("POST", f"/tasks/{cur['id']}/move", {"workflow_id": wf_id, "workflow_step_id": target, "position": 0})
+
+
 def main():
     ws = ensure_workspace()
     repo = ensure_repo(ws["id"])
@@ -151,9 +214,11 @@ def main():
     for name, desc in WORKFLOWS.items():
         wf = ensure_workflow(ws["id"], name, desc)
         steps = ensure_steps(wf["id"])
-        wf_ids[name] = (wf["id"], steps["Backlog"]["id"])
-    wf_a, backlog_a = wf_ids["A 部署與研究"]
+        wf_ids[name] = (wf["id"], steps["Backlog"]["id"], steps)
+    wf_a, backlog_a, _ = wf_ids["A 部署與研究"]
     ensure_tasks(ws["id"], wf_a, backlog_a, repo["id"])
+    wf_b, _, steps_b = wf_ids[TICKET_WORKFLOW]
+    sync_ticket_cards(ws["id"], wf_b, steps_b, repo["id"])
     print(f"workspace={ws['id']} repo={repo['id']} workflows={len(wf_ids)}")
 
 
