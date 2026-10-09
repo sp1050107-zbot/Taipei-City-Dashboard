@@ -1,5 +1,7 @@
 # QA 品質迴圈 Workflow Implementation Plan
 
+> **狀態（2026-10-10）**：大里選「Q2：縮小範圍」，本計畫**不再執行**。Task 1（Kandev 實測）與 Task 2（`graph-query.mjs`）已完成；Task 3 的分支 `feature/qa-docs` 已於 2026-10-08 經大里同意丟棄；Task 4–7（Q workflow、套用、兩輪演練、收尾）不做。現行做法見 `docs/qa/README.md`，原因見 spec 開頭的「範圍調整」。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 Kandev 建立第三條 workflow `Q 品質迴圈`（QA → bug → Fix → 複驗 → 摘要檔），手動觸發 QA，並用知識圖縮小分流與影響範圍。

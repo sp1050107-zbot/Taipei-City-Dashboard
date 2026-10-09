@@ -1,6 +1,12 @@
 # QA 品質迴圈 Workflow 設計 Spec（QA → Bug → Dev 修 → QA 複驗 → PM 摘要）
 
-日期：2026-10-07　狀態：草案（使用者 2026-10-07 已定三個決定，待審閱後寫實作計畫）
+日期：2026-10-07　狀態：**縮小範圍**（2026-10-10 大里選「Q2：縮小範圍」）。本文以下內容保留為原設計紀錄；現行做法見 `docs/qa/README.md`。
+
+> **範圍調整（2026-10-10）**
+> - **保留**：BUG 卡內容與嚴重度（§6）、複驗用不同 session 與退回 2 次升級（§4.5、§8）、就緒探測與「環境未就緒不算 bug」（§4.1）、知識圖只當提示（§5）、只測不修（`/qa-only`）。
+> - **不做**：第三條 workflow `Q 品質迴圈`、欄位自動啟動 agent、agent 自己建卡移卡、PM agent 自動摘要（§3、§7、§8 的 Kandev 設定）。
+> - **改成**：發現寫成 `.scratch/qa/issues/` 的票，由 `kandev_bootstrap.py` 同步看板；修復走既有 `/implement-spec`；合併前加 Codex 獨立審查（`docs/decisions/0004-codex-independent-review-and-cross-verification.md`）。
+> - **原因**（查證於 `~/control-tower/reports/Taipei｜規劃與規則-2026-10-10.md`）：原設計的 agent 自動建卡移卡與 BASELINE 的 L1 規則衝突；依賴自動啟動 agent 會擴大 Kandev 安全問題 S3 的影響面；`claude-acp` 每步需人工核准，自動迴圈跑不順；演練題目（GA 追蹤碼）已被移除；合併前沒有 Codex 這一關。
 目標 repo：`sp1050107-zbot/Taipei-City-Dashboard`（整合 checkout `~/Taipei-City-Dashboard`，分支 `develop`）
 上游文件：`docs/superpowers/specs/2026-10-06-local-deploy-and-agent-workflow-design.md`（三層分工、Kandev 結構、交接協議；本文不重複，只寫差異）
 
