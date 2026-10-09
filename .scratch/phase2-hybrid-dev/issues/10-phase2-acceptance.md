@@ -17,7 +17,7 @@
 - [x] Frontend serves on 8080 and proxies to the local backend, not production.
 - [x] Dashboard page, map page and admin page load. (Admin page: shown by the owner's screenshot on 2026-10-09, see below.)
 - [x] Frontend HMR time and backend restart time are measured and recorded as numbers.
-- [ ] A breakpoint is hit on the frontend and on the backend; the tool used is recorded.
+- [ ] A breakpoint is hit on the frontend and on the backend; the tool used is recorded. Backend: hit with Delve 1.27.2 headless on 2026-10-10 (`evidence/phase2/10-backend-breakpoint-dlv.md`); frontend: still open (owner).
 - [x] The return-to-Phase-1 section is executed and works (2026-10-09, owner approved; evidence `docs/agent-workflow/evidence/phase2/10-return-to-phase1.md`).
 - [x] A secret scan of all staged changes is clean and the frontend local environment file is ignored by git.
 - [x] **Admin login is confirmed by the owner personally; no agent logs in or reads the admin password.** Until the owner reports, this item is UNVERIFIED. Confirmed 2026-10-09 by the owner's screenshot, on the Phase 1 container stack (same databases and same backend code); not repeated on the native stack.
@@ -46,3 +46,7 @@ Checked by Claude from the Phase 1 backend container log and the manager databas
 
 What this does not show: the log contains no admin-console API requests after the login (the last request was at 23:37:40 UTC), so the owner's screenshot is the only evidence that the `/admin` pages rendered. Debugger breakpoints are still open.
 
+### Update 2026-10-10 (backend breakpoint)
+
+- Backend breakpoint hit: Delve 1.27.2 headless, `GetAllDashboards` at `app/controllers/dashboard.go:24`, triggered by `GET /api/v1/dashboard/`; native backend restored afterwards. This proves Delve can attach, not that an IDE's Run and Debug works. Evidence: `docs/agent-workflow/evidence/phase2/10-backend-breakpoint-dlv.md`.
+- Still open: frontend breakpoint (owner, Chrome DevTools).
