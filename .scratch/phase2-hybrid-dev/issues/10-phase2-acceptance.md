@@ -4,7 +4,7 @@
 
 **Blocked by:** 09 Native dev runbook and environment ready.
 
-**Status:** claimed
+**Status:** resolved
 
 **Read first (nothing else is assumed):** `AGENTS.md`, `GLOSSARY.md`, `.scratch/phase2-hybrid-dev/spec.md`, `docs/decisions/0002-phase1-phase2-one-stack-at-a-time.md`, `docs/decisions/0003-phase2-execution-engine-and-gates.md`, and the plan `docs/superpowers/plans/2026-10-07-phase2-hybrid-dev.md` (the working draft of the how; reference it by Task number, do not copy it). The plan is on `develop` once the P2-00 branch has been merged; if it is not there yet, stop and ask the owner.
 
@@ -17,7 +17,7 @@
 - [x] Frontend serves on 8080 and proxies to the local backend, not production.
 - [x] Dashboard page, map page and admin page load. (Admin page: shown by the owner's screenshot on 2026-10-09, see below.)
 - [x] Frontend HMR time and backend restart time are measured and recorded as numbers.
-- [ ] A breakpoint is hit on the frontend and on the backend; the tool used is recorded. Backend: hit with Delve 1.27.2 headless on 2026-10-10 (`evidence/phase2/10-backend-breakpoint-dlv.md`); frontend: still open (owner).
+- [x] A breakpoint is hit on the frontend and on the backend; the tool used is recorded. Backend: hit with Delve 1.27.2 headless on 2026-10-10 (`evidence/phase2/10-backend-breakpoint-dlv.md`); frontend: verified by the owner on 2026-10-10 in Chrome DevTools Sources at `src/store/contentStore.js:137`.
 - [x] The return-to-Phase-1 section is executed and works (2026-10-09, owner approved; evidence `docs/agent-workflow/evidence/phase2/10-return-to-phase1.md`).
 - [x] A secret scan of all staged changes is clean and the frontend local environment file is ignored by git.
 - [x] **Admin login is confirmed by the owner personally; no agent logs in or reads the admin password.** Until the owner reports, this item is UNVERIFIED. Confirmed 2026-10-09 by the owner's screenshot, on the Phase 1 container stack (same databases and same backend code); not repeated on the native stack.
@@ -50,3 +50,8 @@ What this does not show: the log contains no admin-console API requests after th
 
 - Backend breakpoint hit: Delve 1.27.2 headless, `GetAllDashboards` at `app/controllers/dashboard.go:24`, triggered by `GET /api/v1/dashboard/`; native backend restored afterwards. This proves Delve can attach, not that an IDE's Run and Debug works. Evidence: `docs/agent-workflow/evidence/phase2/10-backend-breakpoint-dlv.md`.
 - Still open: frontend breakpoint (owner, Chrome DevTools).
+
+### Update 2026-10-10 (frontend breakpoint, ticket resolved)
+
+- Owner (大里) reported in chat on 2026-10-10: the frontend breakpoint was verified in Chrome DevTools Sources at `src/store/contentStore.js` line 137, ``const response = await http.get(`/dashboard/`);`` inside `setDashboards`, which runs on page load. That is the request the backend breakpoint caught in `GetAllDashboards`. The agent did not see it; this line records the owner's report.
+- Every acceptance item is now ticked. Ticket resolved. Caveats that stay true: admin login was confirmed on the Phase 1 container stack, not repeated on the native stack; the backend breakpoint was hit with headless Delve, not through an IDE; `/geo_server/` behaviour is still UNVERIFIED (not an acceptance item).
