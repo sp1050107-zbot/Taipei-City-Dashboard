@@ -1,5 +1,7 @@
 # Phase 1：本地部署 + Agent 工作流基礎 Implementation Plan
 
+> Codex 部分由 [0004](../../decisions/0004-codex-independent-review-and-cross-verification.md) 取代：自 2026-10-08 起**接 Codex**做獨立審查（大里 2026-10-11 指示改寫）。下文刪除線為 Phase 1 當時的限定。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 Kandev 建好專案的 workspace/workflow/task，補齊 `CLAUDE.md` / `AGENTS.md` / `MEMORY.md`，並用官方 Docker 全容器方式把 Taipei-City-Dashboard 在本機跑起來、取得驗收證據。
@@ -459,7 +461,7 @@ Expected: `FAIL: CLAUDE.md missing`
 - [Phase 1 計畫](docs/superpowers/plans/2026-10-06-phase1-local-deploy.md) — 10 個 Task，對應 Kandev 種子 task P1-01…P1-08
 
 ## 已定案決定
-- 檔名用 AGENTS.md；.planning/ 納入 git；本輪不接 Codex；不設 AI/LLM 金鑰；Mapbox 用使用者自己的 token（`mapbox-key.txt`，不入 git）。
+- 檔名用 AGENTS.md；.planning/ 納入 git；~~本輪不接 Codex~~ **接 Codex**（見 0004）；不設 AI/LLM 金鑰；Mapbox 用使用者自己的 token（`mapbox-key.txt`，不入 git）。
 - 本機 git 尚未設定 user.name/email（使用者決定），不 push。
 
 ## 目前狀態

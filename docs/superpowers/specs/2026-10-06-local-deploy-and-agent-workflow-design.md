@@ -1,5 +1,7 @@
 # Taipei-City-Dashboard 本地部署 × 三層 Agent 分工 設計 Spec
 
+> Codex 部分由 [0004](../../decisions/0004-codex-independent-review-and-cross-verification.md) 取代：自 2026-10-08 起**接 Codex**做獨立審查（大里 2026-10-11 指示改寫）。下文刪除線為 Phase 1 當時的限定。
+
 日期：2026-10-06　狀態：已核准（使用者 2026-10-06 指示開始寫實作計畫）
 目標 repo：`sp1050107-zbot/Taipei-City-Dashboard`（fork，upstream `taipei-doit/Taipei-City-Dashboard`，預設分支 `develop`）
 本機路徑：`~/Taipei-City-Dashboard`（整合 checkout）
@@ -137,7 +139,7 @@
 1. **Kandev 寫入介面已查證**（讀 `~/Documents/sp1050107-zbot/kandev` 原始碼，端點與實機 GET 皆符合）：`POST /api/v1/workspaces`、`POST /api/v1/workflows`、`POST /api/v1/workflow/steps`、`POST /api/v1/tasks`；每個 workflow step 有 `prompt` 模板（含 `{{task_prompt}}`），可把各欄位的技能指令寫進欄位。請求欄位格式在計畫的第一個 task 以讀 handler 原始碼確認，不靠猜測。
 2. 檔名採 **`AGENTS.md`**。
 3. **`.planning/` 納入 git**。
-4. 本輪**不接 Codex**，也不碰 AI/LLM 金鑰。
+4. ~~本輪**不接 Codex**~~ **接 Codex**（獨立審查，見 0004），不碰 AI/LLM 金鑰。
 5. 使用者已申請 Mapbox，token 放在 `~/Taipei-City-Dashboard/mapbox-key.txt`（已列入 `.git/info/exclude`，不會被 commit）→ 見 §9.1。
 
 ### 9.1 地圖替代方案（無 token）
@@ -157,4 +159,4 @@
 
 ## 10. 不做的事（YAGNI）
 
-不接 Codex、不做 C 類正式部署、不碰 AI/LLM 金鑰、不改 upstream、不為了「完整」把 gstack 23 個角色全用上——只在上表對應的階段呼叫。
+~~不接 Codex、~~不做 C 類正式部署、不碰 AI/LLM 金鑰、不改 upstream、不為了「完整」把 gstack 23 個角色全用上——只在上表對應的階段呼叫。
