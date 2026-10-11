@@ -81,3 +81,5 @@ Taipei-City-Dashboard-DE/docker/prod/.env
 # Understand-Anything generated graph (large, rebuildable with /understand)
 .ua/knowledge-graph.json
 .ua/fingerprints.json
+# Serena MCP local project cache (machine-local, not versioned)
+.serena/
