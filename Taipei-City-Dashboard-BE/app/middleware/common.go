@@ -14,6 +14,7 @@ import (
 	"TaipeiCityDashboardBE/app/models"
 	"TaipeiCityDashboardBE/app/util"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,6 +51,20 @@ func IsSysAdm() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, _, isAdmin, _, _ := util.GetUserInfoFromContext(c)
 		if isAdmin {
+			c.Next()
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "error", "message": "Unauthorized"})
+	}
+}
+
+// IsSelf checks that the user ID in the path parameter is the logged-in user.
+// Admins get no bypass: managing other users' data needs its own admin route.
+func IsSelf(param string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, accountID, _, _, _ := util.GetUserInfoFromContext(c)
+		userID, err := strconv.Atoi(c.Param(param))
+		if err == nil && accountID != 0 && userID == accountID {
 			c.Next()
 			return
 		}
