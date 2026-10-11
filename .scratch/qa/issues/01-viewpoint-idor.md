@@ -1,6 +1,6 @@
 # 01: 任何登入者可讀寫刪他人的地圖視角（viewpoint）
 
-**What to build:** 只有本人（或系統管理者）能讀、建、刪自己的 viewpoint；他人請求回 403，回應不再帶其他使用者的 email。
+**What to build:** 只有本人（或系統管理者）能讀、建、刪自己的 viewpoint；他人請求回 403。
 
 **Blocked by:** None (can start immediately)
 
@@ -17,7 +17,7 @@
   2. 用 `qa-editor`（非管理者，user_id 3）登入，GET `/api/v1/user/2/viewpoint`。
   3. 同一帳號 POST `/api/v1/user/2/viewpoint`，再 DELETE `/api/v1/user/2/viewpoint/<id>`。
 - 預期：2、3 皆 403（路徑 `:id` 不是自己）。
-- 實際：皆成功（200／201），讀取回應的 `AuthUser` 帶出 admin 的 email 與 is_admin。
+- 實際：皆成功（200／201）。**更正（2026-10-11，經 QA 重測）**：先前寫「回應帶出 admin 的 email 與 is_admin」不成立，那是我從被截斷的輸出推論的；重測時 `AuthUser.account`、`is_admin` 皆為空（零值），沒有洩漏他人 email。越權讀、建、刪三項本身仍成立，S2 不變。
 - 證據：`docs/qa/evidence/qa-3/probe-2.out`（「editor READ／CREATE／DELETE admin vp」三列）、`probe-2.py`
 - 候選檔案：
   - `Taipei-City-Dashboard-BE/app/controllers/viewPoints.go:16,42,61` — 三個 handler 未比對 `:id` 與登入者（來源：讀碼，未逐行確認）

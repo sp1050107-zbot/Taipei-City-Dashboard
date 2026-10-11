@@ -1,6 +1,6 @@
 # 03: ai-summary/trigger 未掛管理者驗證，匿名可觸發 DAG
 
-**What to build:** 只有系統管理者能 POST `/component/ai-summary/trigger`；匿名回 403。
+**What to build:** 只有系統管理者能 POST `/component/ai-summary/trigger` 與 GET `/component/ai-summary/status/:dag_run_id`；匿名回 403。`GET /component/ai-summary` 維持公開。
 
 **Blocked by:** None (can start immediately)
 
@@ -17,6 +17,7 @@
   2. 驗證時（需擁有者同意觸發 DAG）：不帶 token POST `/api/v1/component/ai-summary/trigger`，body `{"index":"qa-3","type":"chart"}`。
 - 預期：403。
 - 實際（實測）：匿名 POST 回 502「Failed to connect to Airflow service ... unsupported protocol scheme」，表示已越過驗證並進入 handler；同組管理者路由（POST `/component/`、PATCH `/component/60`）匿名回 403。匿名 GET `/ai-summary/status/<id>` 同樣到達 handler。
+- **前提（Codex 審查補充）**：只有設定了 `AIRFLOW_SUMMARY_BASE_URL` 的部署，匿名者才真的能觸發 DAG；預設為空字串，此時回 502、不會觸發。範圍含 trigger 與 status 兩條路由。
 - 限制：本環境 Airflow `BaseURL` 未設定，所以沒有真的建立 DAG run；實際觸發能力依 Airflow 設定。送的是不存在的 index（`qa-3-noindex`），未留下 Airflow 執行紀錄。部署若設了 Airflow，匿名者即可用服務帳號觸發 DAG。
 - 證據：`docs/qa/evidence/qa-3/ticket-03-anon-trigger.txt`
 - 候選檔案：
