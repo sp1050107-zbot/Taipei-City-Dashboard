@@ -16,7 +16,7 @@
   1. POST `/api/v1/auth/login`，Basic 認證帳號用 `notanemail`。
 - 預期：`{"error":"invalid email format ..."}`。
 - 實際：`{"error":{}}`（把 error 物件直接放進 gin.H，序列化後為空）。
-- 證據：`docs/qa/evidence/qa-3/probe-1.out`（「login bad email fmt」列）
+- 證據：`docs/qa/evidence/qa-3/probe-1-output.txt`（「login bad email fmt」列）
 - 候選檔案：
   - `Taipei-City-Dashboard-BE/app/controllers/auth.go:43` — `fmt.Errorf(...)` 直接放進 gin.H（來源：讀碼）
 - 影響範圍（修復完成後填）：endpoint／頁面／測試

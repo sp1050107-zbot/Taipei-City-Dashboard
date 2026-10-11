@@ -3,7 +3,7 @@
 用法：python3 probe-1.py        （從任何目錄執行；只依賴同目錄的 qa_lib.py）
 副作用：會在後端建立帶 qa-3 的 dashboard、contributor、incident、viewpoint、issue。
 清除：前四類在 finally 內用 API 刪除；issue 沒有刪除端點，結束時會印出手動清除的 SQL（需在整合 checkout 主機執行）。
-注意：contributor 新增會消耗序號（見票 02），重跑結果可能和 probe-1.out 不同。
+注意：contributor 新增會消耗序號（見票 02），重跑結果可能和 probe-1-output.txt 不同。
 """
 import os,sys,json
 sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))

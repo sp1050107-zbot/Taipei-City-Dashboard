@@ -17,7 +17,7 @@
   2. `qa-admin` PATCH `/api/v1/dashboard/<index>`。
 - 預期：403 或 404（含清楚訊息）。
 - 實際：500，`record not found`。
-- 證據：`docs/qa/evidence/qa-3/probe-1.out`（「admin2 patch editor dash」列）
+- 證據：`docs/qa/evidence/qa-3/probe-1-output.txt`（「admin2 patch editor dash」列）
 - 候選檔案：
   - `Taipei-City-Dashboard-BE/app/controllers/dashboard.go:215` — UpdateDashboard（來源：讀碼）
 - 影響範圍（修復完成後填）：endpoint／頁面／測試

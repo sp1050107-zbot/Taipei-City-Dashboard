@@ -18,7 +18,7 @@
   3. 同一帳號 POST `/api/v1/user/2/viewpoint`，再 DELETE `/api/v1/user/2/viewpoint/<id>`。
 - 預期：2、3 皆 403（路徑 `:id` 不是自己）。
 - 實際：皆成功（200／201）。**更正（2026-10-11，經 QA 重測）**：先前寫「回應帶出 admin 的 email 與 is_admin」不成立，那是我從被截斷的輸出推論的；重測時 `AuthUser.account`、`is_admin` 皆為空（零值），沒有洩漏他人 email。越權讀、建、刪三項本身仍成立，S2 不變。
-- 證據：`docs/qa/evidence/qa-3/probe-2.out`（「editor READ／CREATE／DELETE admin vp」三列）、`probe-2.py`
+- 證據：`docs/qa/evidence/qa-3/probe-2-output.txt`（「editor READ／CREATE／DELETE admin vp」三列）、`probe-2.py`
 - 候選檔案：
   - `Taipei-City-Dashboard-BE/app/controllers/viewPoints.go:16,42,61` — 三個 handler 未比對 `:id` 與登入者（來源：讀碼，未逐行確認）
   - `Taipei-City-Dashboard-BE/app/routes/router.go` — `/user/:id/viewpoint` 只掛 IsLoggedIn（來源：讀碼）

@@ -26,14 +26,12 @@ def main():
         if c in(200,201): viewpoints.append((admin_id,j['data']['id'],ta))
         if viewpoints:
             show('editor DELETE admin vp',call('DELETE',f'/user/{admin_id}/viewpoint/{viewpoints[0][1]}',tok=te))
-        show('editor create own vp',call('POST',f'/user/{editor_id}/viewpoint',dict(vp,name='qa-3 own'),tok=te))
+        c,j=show('editor create own vp',call('POST',f'/user/{editor_id}/viewpoint',dict(vp,name='qa-3 own'),tok=te))
+        if c in(200,201): viewpoints.append((editor_id,j['data']['id'],te))
     finally:
         for cid in contributors: call('DELETE',f'/contributor/{cid}',tok=ta)
-        for uid in (admin_id,editor_id):
-            tok=ta if uid==admin_id else te
-            for v in (call('GET',f'/user/{uid}/viewpoint',tok=tok)[1] or []):
-                if isinstance(v,dict) and str(v.get('name','')).startswith('qa-3'):
-                    call('DELETE',f'/user/{uid}/viewpoint/{v["id"]}',tok=tok)
+        # 只刪本次建立的 ID（已被刪或被修正擋下者回 404／403 屬正常），不做前綴掃描
+        for uid,vid,tok in viewpoints: call('DELETE',f'/user/{uid}/viewpoint/{vid}',tok=tok)
 
 if __name__=='__main__':
     main()

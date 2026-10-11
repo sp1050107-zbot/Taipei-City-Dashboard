@@ -17,9 +17,9 @@
   2. POST `/api/v1/contributor/`，body `{"user_id":"qa-3","user_name":"qa-3","link":"http://x.example","image":"a.png"}`。
   3. 重複送出直到成功，之後刪掉建出的資料。
 - 預期：第一次即 200。
-- 實際：500，`duplicate key value violates unique constraint "contributors_pkey"`；第 2 次才成功（id 3）。重現兩次（`probe-1.out`、`probe-2.out`）。
+- 實際：500，`duplicate key value violates unique constraint "contributors_pkey"`；第 2 次才成功（id 3）。重現兩次（`probe-1-output.txt`、`probe-2-output.txt`）。
 - 同類風險（唯讀查證，`select max(id)` 對照序號）：issues max=4 序號從 1 起（再建 3 筆後撞 id 4）；components max=218、序號未用過（建到 id 60 會撞）。dashboards、groups 沒問題（示範檔有 setval）。
-- 證據：`docs/qa/evidence/qa-3/probe-1.out`、`probe-2.out`
+- 證據：`docs/qa/evidence/qa-3/probe-1-output.txt`、`probe-2-output.txt`
 - 候選檔案：
   - `db-sample-data/dashboardmanager-demo.sql:142,151` — 只對 dashboards、groups 做 setval（來源：讀碼）
   - `Taipei-City-Dashboard-BE/app/models/contributor.go` — 資料表定義（來源：讀碼）
