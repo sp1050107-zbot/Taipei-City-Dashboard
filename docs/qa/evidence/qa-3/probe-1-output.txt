@@ -1,0 +1,41 @@
+login 200 200
+login wrong pw: 401 OK {"error": "Incorrect username or password"}
+login bad email fmt: 401 OK {"error": {}}
+bad token /user/me: 401 {"error": "token is malformed"}
+admin /user/me: 200 OK {"status": "success", "user": {"user_id": 2, "name": "qa-admin", "account": "qa-admin@example.com", "TpAccount": null, "is_admin": true, "is_active": 
+editor /user/me: 200 OK {"status": "success", "user": {"user_id": 3, "name": "qa-editor", "account": "qa-editor@example.com", "TpAccount": null, "is_admin": false, "is_active
+editor GET /user/ (admin only): 403 OK {"message": "Unauthorized", "status": "error"}
+admin GET /user/: 200 OK {"data": [{"user_id": 1, "name": "admin", "account": "admin@example.com", "TpAccount": null, "is_admin": true, "is_active": true, "is_whitelist": true
+editor GET /incident/: 403 OK {"message": "Unauthorized", "status": "error"}
+admin GET /incident/: 200 OK {"data": [], "results": 0, "status": "success", "total": 0}
+editor GET /issue/: 403 OK {"message": "Unauthorized", "status": "error"}
+admin GET /issue/: 200 OK {"data": [{"id": 4, "title": "test", "user_name": "Drew", "user_id": "1", "context": "test", "description": "test", "decision_desc": "測試", "status": "
+admin check-index: 202 **EXPECTED 200** {"available": true, "status": "success"}
+editor check-index: 403 OK {"message": "Unauthorized", "status": "error"}
+editor create personal dash: 200 OK {"data": {"index": "670d8e0f5a61", "name": "qa-3 dash", "components": [60], "icon": "star", "updated_at": "2026-10-11T07:42:46.224982+08:00"}, "status
+editor get own dash: 200 OK {"data": [{"id": 60, "index": "youbike_availability", "name": "YouBike使用情況", "chart_config": {"index": "youbike_availability", "color": ["#9DC56E", "#
+editor patch own dash: 200 OK {"data": {"index": "670d8e0f5a61", "name": "qa-3 dash2", "components": [60, 212], "icon": "star", "updated_at": "2026-10-11T07:42:46.248121+08:00"}, "
+admin2 patch editor dash (other owner): 500 {"message": "record not found", "status": "error"}
+anon delete dash: 403 OK {"message": "Unauthorized", "status": "error"}
+editor delete own dash: 200 OK {"status": "success"}
+get deleted dash: 404 OK {"message": "record not found", "status": "error"}
+editor create dash missing fields: 400 OK {"message": "Missing required fields. Please provide a name, icon, and components array.", "status": "error"}
+editor create public dash (admin only): 403 OK {"message": "Unauthorized", "status": "error"}
+admin create public dash: 200 OK {"data": {"index": "qa-3-pub", "name": "qa-3 pub", "components": [60], "icon": "star", "updated_at": "2026-10-11T07:42:46.346139+08:00"}, "status": "s
+anon list shows pub: 200 ["map-layers-taipei", "ltc_care_tpe", "qa-3-pub"]
+admin delete public dash: 200 OK {"status": "success"}
+editor create contributor: 403 OK {"message": "Unauthorized", "status": "error"}
+admin create contributor: 500 **EXPECTED 200** {"message": "ERROR: duplicate key value violates unique constraint \"contributors_pkey\" (SQLSTATE 23505)", "status": "error"}
+editor create issue: 200 OK {"data": {"id": 1, "title": "qa-3 issue", "user_name": "qa-editor", "user_id": "qa-editor", "context": "", "description": "qa-3", "decision_desc": "",
+anon create issue: 403 OK {"message": "Unauthorized", "status": "error"}
+issue missing fields: 400 OK {"message": "title, description, user info is required", "status": "error"}
+admin patch issue: 400 **EXPECTED 200** {"message": "updated_by is required", "status": "error"}
+admin create incident: 201 **EXPECTED 200** {"data": {"ID": 1, "inctype": "qa-3", "description": "qa-3", "distance": 10, "latitude": 25.03, "longitude": 121.56, "place": "臺北市信義區三興段一小段景聯里", "repo
+incident missing fields: 400 OK {"message": "title, description, distance info is required", "status": "error"}
+editor user_id 3
+editor create viewpoint: 201 **EXPECTED 200** {"data": {"id": 1, "user_id": 3, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 vp", "point_type": "qa-3", "Au
+editor list viewpoint: 200 OK [{"id": 1, "user_id": 3, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 vp", "point_type": "qa-3", "AuthUser":
+admin read editor viewpoints (cross-user): 200 [{"id": 1, "user_id": 3, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 vp", "point_type": "qa-3", "AuthUser":
+PATCH me: 200 OK {"data": {"user_id": 3, "name": "qa-editor", "account": "qa-editor@example.com", "TpAccount": null, "is_admin": false, "is_active": true, "is_whitelis
+editor create component: 403 OK {"message": "Unauthorized", "status": "error"}
+anon component create: 403 OK {"message": "Unauthorized", "status": "error"}

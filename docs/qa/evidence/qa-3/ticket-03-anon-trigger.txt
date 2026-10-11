@@ -1,0 +1,7 @@
+# 2026-10-11，未帶任何 Authorization header，後端 http://127.0.0.1:8088/api/v1
+POST /component/ai-summary/trigger -> 502 {"message":"Failed to connect to Airflow service: Post \"/api/v1/dags/proj_city_dashboard_component_ai_summary/dagRuns\": unsupported protocol scheme \"\"","status":"error"}
+GET  /component/ai-summary/status/qa-3-x -> 502 (同上，GET dagRuns/qa-3-x)
+POST /component/        -> 403 {"message":"Unauthorized","status":"error"}   # 對照：管理者路由
+PATCH /component/60     -> 403 {"message":"Unauthorized","status":"error"}   # 對照：管理者路由
+POST trigger, type=zzz  -> 400 {"message":"Type must be either 'chart' or 'map'"}  # 匿名即可通過到參數驗證
+# body: {"index":"qa-3-noindex","city":"taipei","type":"chart"}（不存在的 index）

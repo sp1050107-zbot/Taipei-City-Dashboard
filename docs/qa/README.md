@@ -33,7 +33,9 @@
 4. **寫入類測試**：只用含 `qa-<報告編號>` 的可辨識資料，結束前清除；清不掉的要在報告列出。資料初始化不重跑（`AGENTS.md` 規則 9）。
 5. **每個發現**：先比對 `.scratch/qa/issues/` 裡還沒 resolved 的票，避免重複；新問題才用 `templates/bug-ticket.md` 開新票。證據（截圖、curl 輸出，**不含祕密**）放 `docs/qa/evidence/<票號>/`。
 6. **報告**：用 `templates/qa-run-report.md`，存 `docs/qa/runs/<YYYY-MM-DD>-<n>.md`。
-7. **收尾**：commit（文件類，可直接在整合 checkout 的 `develop`），然後同一回合執行 `python3 docs/agent-workflow/kandev_bootstrap.py` 讓看板出現新卡，再用 `python3 docs/agent-workflow/test_kandev_bootstrap.py` 驗證（`AGENTS.md` 的強制規則）。
+7. **收尾**：
+   - **擁有者自己開的巡檢**：commit（文件類，可直接在整合 checkout 的 `develop`），然後同一回合執行 `python3 docs/agent-workflow/kandev_bootstrap.py` 讓看板出現新卡，再用 `python3 docs/agent-workflow/test_kandev_bootstrap.py` 驗證（`AGENTS.md` 的強制規則）。
+   - **QA 專責 session（試點，2026-10-11 起，大里決定）**：不在 `develop` commit、不跑 `kandev_bootstrap.py`、不移卡建卡。票與報告只 commit 在自己的 worktree 分支，並在報告寫出分支名；併入 `develop` 與看板同步由「Taipei｜主線」依擁有者指示處理。
 
 ### 2. 分流與修復
 

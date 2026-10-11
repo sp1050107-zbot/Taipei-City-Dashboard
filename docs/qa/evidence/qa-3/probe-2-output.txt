@@ -1,0 +1,12 @@
+replay admin create contributor #1: 500 {"message": "ERROR: duplicate key value violates unique constraint \"contributors_pkey\" (SQLSTATE 23505)", "status": "error"}
+replay admin create contributor #2: 200 {"data": {"id": 3, "user_id": "qa-3", "user_name": "qa-3", "image": "a.png", "link": "http://x.example", "identity": null, "description": null, "inclu
+replay admin create contributor #3: 200 {"data": {"id": 4, "user_id": "qa-3", "user_name": "qa-3", "image": "a.png", "link": "http://x.example", "identity": null, "description": null, "inclu
+cleanup contributor: 200 OK {"contributor_deleted": true, "status": "success"}
+cleanup contributor: 200 OK {"contributor_deleted": true, "status": "success"}
+admin create vp: 201 {"data": {"id": 2, "user_id": 2, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 admin vp", "point_type": "qa-3
+editor READ admin viewpoints: 200 [{"id": 2, "user_id": 2, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 admin vp", "point_type": "qa-3", "Auth
+editor CREATE vp for admin: 201 {"data": {"id": 3, "user_id": 2, "center_x": 1, "center_y": 1, "zoom": 1, "pitch": 0, "bearing": 0, "name": "qa-3 idor", "point_type": "qa-3", "AuthUs
+editor DELETE admin vp 2: 200 {"message": "Viewpoint deleted", "status": "success"}
+editor DELETE admin vp 3: 200 {"message": "Viewpoint deleted", "status": "success"}
+cleanup vp 1: 200 {"message": "Viewpoint deleted", "status": "success"}
+[(1, 'qa-3')]
