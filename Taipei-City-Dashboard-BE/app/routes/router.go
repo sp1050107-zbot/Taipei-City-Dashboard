@@ -59,18 +59,27 @@ func configureUserRoutes() {
 	userRoutes := RouterGroup.Group("/user")
 	userRoutes.Use(middleware.LimitAPIRequests(global.UserLimitAPIRequestsTimes, global.LimitRequestsDuration))
 	userRoutes.Use(middleware.LimitTotalRequests(global.UserLimitTotalRequestsTimes, global.TokenExpirationDuration))
+	registerViewPointRoutes(userRoutes)
 	userRoutes.Use(middleware.IsLoggedIn())
 	{
 		userRoutes.GET("/me", controllers.GetUserInfo)
 		userRoutes.PATCH("/me", controllers.EditUserInfo)
-		userRoutes.POST("/:id/viewpoint", controllers.CreateViewPoint)
-		userRoutes.GET("/:id/viewpoint", controllers.GetViewPointByUserID)
-		userRoutes.DELETE("/:id/viewpoint/:viewpointid", controllers.DeleteViewPoint)
 	}
 	userRoutes.Use(middleware.IsSysAdm())
 	{
 		userRoutes.GET("/", controllers.GetAllUsers)
 		userRoutes.PATCH("/:id", controllers.UpdateUserByID)
+	}
+}
+
+// registerViewPointRoutes registers /user/:id/viewpoint routes. It carries its own
+// auth chain so the result does not depend on which Use() calls ran before it.
+func registerViewPointRoutes(userRoutes *gin.RouterGroup) {
+	viewPointRoutes := userRoutes.Group("/:id/viewpoint", middleware.IsLoggedIn(), middleware.IsSelf("id"))
+	{
+		viewPointRoutes.POST("", controllers.CreateViewPoint)
+		viewPointRoutes.GET("", controllers.GetViewPointByUserID)
+		viewPointRoutes.DELETE("/:viewpointid", controllers.DeleteViewPoint)
 	}
 }
 
@@ -110,9 +119,7 @@ func configureComponentRoutes() {
 	componentRoutes.Use(middleware.LimitTotalRequests(global.ComponentLimitTotalRequestsTimes, global.LimitRequestsDuration))
 	{
 		componentRoutes.GET("/", controllers.GetAllComponents)
-		componentRoutes.GET("/ai-summary", controllers.GetComponentAISummary)
-		componentRoutes.POST("/ai-summary/trigger", controllers.TriggerComponentAISummaryDAG)
-		componentRoutes.GET("/ai-summary/status/:dag_run_id", controllers.GetComponentAISummaryDAGStatus)
+		registerAISummaryRoutes(componentRoutes)
 		componentRoutes.GET("/:id", controllers.GetComponentByID)
 		componentRoutes.GET("/:id/all", controllers.GetComponentByIDAll)
 		componentRoutes.GET("/:id/chart", controllers.GetComponentChartData)
@@ -127,6 +134,19 @@ func configureComponentRoutes() {
 		componentRoutes.
 			PATCH("/:id/chart", controllers.UpdateComponentChartConfig)
 		componentRoutes.PATCH("/:id/map", controllers.UpdateComponentMapConfig)
+	}
+}
+
+// registerAISummaryRoutes registers /component/ai-summary routes. Reading a summary
+// is public; triggering the Airflow DAG and reading its run status are admin-only.
+func registerAISummaryRoutes(componentRoutes *gin.RouterGroup) {
+	aiSummaryRoutes := componentRoutes.Group("/ai-summary")
+	aiSummaryRoutes.GET("", controllers.GetComponentAISummary)
+
+	aiSummaryAdminRoutes := aiSummaryRoutes.Group("", middleware.IsSysAdm())
+	{
+		aiSummaryAdminRoutes.POST("/trigger", controllers.TriggerComponentAISummaryDAG)
+		aiSummaryAdminRoutes.GET("/status/:dag_run_id", controllers.GetComponentAISummaryDAGStatus)
 	}
 }
 

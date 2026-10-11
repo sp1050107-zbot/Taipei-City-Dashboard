@@ -1,5 +1,7 @@
 package models
 
+import "gorm.io/gorm"
+
 type ViewPoints struct {
 	ID        int      `json:"id" gorm:"column:id;autoincrement;primaryKey"`
 	UserID    int      `json:"user_id" gorm:"column:user_id;not null"`
@@ -45,10 +47,15 @@ func GetViewPointByUserID(userID int) ([]ViewPoints, error) {
 	return viewpoint, nil
 }
 
+// DeleteViewPoint deletes one of the user's viewpoints. It returns
+// gorm.ErrRecordNotFound when no viewpoint with that id belongs to the user.
 func DeleteViewPoint(userID, pointID int) error {
-	err := DBManager.Delete(&ViewPoints{}, "id = ? AND user_id = ?", pointID, userID).Error
-	if err != nil {
-		return err
+	result := DBManager.Delete(&ViewPoints{}, "id = ? AND user_id = ?", pointID, userID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 	return nil
 }

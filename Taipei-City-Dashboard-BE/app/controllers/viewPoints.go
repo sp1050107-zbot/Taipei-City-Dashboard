@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"TaipeiCityDashboardBE/app/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 /*
@@ -72,6 +74,10 @@ func DeleteViewPoint(c *gin.Context) {
 	}
 
 	err = models.DeleteViewPoint(userID, pointID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Viewpoint not found"})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
