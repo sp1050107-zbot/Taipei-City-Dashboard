@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Read first (nothing else is assumed):** `AGENTS.md`、`docs/qa/README.md`，以及本票列出的證據。
 
@@ -23,13 +23,24 @@
 - 候選檔案：
   - `Taipei-City-Dashboard-BE/app/routes/router.go:114` — 路由註冊順序（來源：讀碼）
   - `Taipei-City-Dashboard-BE/app/controllers/componentAISummary.go:86` — handler（來源：讀碼）
-- 影響範圍（修復完成後填）：endpoint／頁面／測試
+- 影響範圍：endpoint `POST /api/v1/component/ai-summary/trigger`、`GET /api/v1/component/ai-summary/status/:dag_run_id`（改成只限系統管理者，匿名與非管理者 403）；`GET /api/v1/component/ai-summary` 維持公開；頁面：管理後台組件設定（`Taipei-City-Dashboard-FE/src/components/dialogs/admin/AdminComponentSettings.vue`，本來就只有管理者使用）；測試：`app/routes/router_test.go`（用替身 Airflow）
 - 退回次數：0
 
 ## Acceptance criteria
 
-- [ ] 先寫出能重現本 bug 的失敗測試（無法用測試重現時，說明改用哪種證據）。
-- [ ] 修復後該測試通過，既有測試仍全部通過。
-- [ ] 影響範圍已填。
+- [x] 先寫出能重現本 bug 的失敗測試（無法用測試重現時，說明改用哪種證據）。
+- [x] 修復後該測試通過，既有測試仍全部通過。
+- [x] 影響範圍已填。
 - [ ] 合併前通過 `/code-review` 與 Codex 獨立審查（`docs/decisions/0004-…`）。
-- [ ] 由另一個 session 複驗：原重現步驟與影響範圍的回歸項目都通過，證據已存。
+- [x] 由另一個 session 複驗：原重現步驟與影響範圍的回歸項目都通過，證據已存。
+
+## Answer
+
+已修正並併入 `develop`：`917e92a2`（分支 `feature/qa-01-03-authz` @ `46b3d0aa`，未 push）。作者是 Taipei｜主線，驗收是 Taipei｜QA。
+
+- 修法：`/ai-summary/trigger` 與 `/ai-summary/status/:dag_run_id` 移到 `IsSysAdm()` 子群組（`registerAISummaryRoutes`），`GET /ai-summary` 維持公開。
+- 測試：用 Gin httptest 搭替身 Airflow，修正前匿名與非管理者都打到了 Airflow（各 2 次，RED），修正後 0 次；管理者仍可呼叫替身。**從頭到尾沒有打真的 Airflow**（大里決定「票 03 先不測」）。
+- 複驗：Taipei｜QA 報告 `docs/qa/runs/2026-10-11-5.md`（離線層 PASS）、`2026-10-11-6.md`（8089：匿名與 editor 都 403；對照 8088 上的 develop 版本回 502；QA 分支 `356e1db3`）。沒有測「管理者仍可 trigger」對真的 Airflow。
+- 審查：Codex 唯讀 GATE: PASS（併入前）。`/code-review` 是**併入後才補跑**的，所以對應的驗收條件保持未勾選。補跑結果：Standards 沒有違反書面規範；Spec 沒有實作錯誤。
+- 後續（不阻擋，未修）：沒有測試鎖住「`GET /component/ai-summary` 維持公開」。
+- 8088 的原生後端已在併入後重啟：匿名 POST trigger 回 403，在驗證那一層就擋下，請求沒有送到 Airflow。
