@@ -1,0 +1,11 @@
+base http://127.0.0.1:8089/api/v1
+anon POST trigger: 403 OK {"message": "Unauthorized", "status": "error"}
+anon GET status: 403 OK {"message": "Unauthorized", "status": "error"}
+editor POST trigger: 403 OK {"message": "Unauthorized", "status": "error"}
+editor GET status: 403 OK {"message": "Unauthorized", "status": "error"}
+anon POST /component/ (admin ctl): 403 OK {"message": "Unauthorized", "status": "error"}
+GET /ai-summary public -> 404 {'message': 'ai summary not found', 'status': 'error'}
+editor delete own nonexistent vp (expect 404): 404 OK {"error": "Viewpoint not found"}
+admin READ editor viewpoints (no admin bypass): 403 OK {"message": "Unauthorized", "status": "error"}
+anon GET viewpoint: 403 OK {"message": "Unauthorized", "status": "error"}
+editor own list: 200 OK []

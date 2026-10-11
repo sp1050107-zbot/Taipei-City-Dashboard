@@ -1,0 +1,8 @@
+create contributor #1: 200 {"data": {"id": 6, "user_id": "qa-3", "user_name": "qa-3", "image": "a.png", "link": "http://x.example", "identity": null, "description": null, "inclu
+create contributor #2: 200 {"data": {"id": 7, "user_id": "qa-3", "user_name": "qa-3", "image": "a.png", "link": "http://x.example", "identity": null, "description": null, "inclu
+create contributor #3: 200 {"data": {"id": 8, "user_id": "qa-3", "user_name": "qa-3", "image": "a.png", "link": "http://x.example", "identity": null, "description": null, "inclu
+admin create vp: 201 {"data": {"id": 6, "user_id": 2, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 admin vp", "point_type": "qa-3
+editor READ admin viewpoints: 403 {"message": "Unauthorized", "status": "error"}
+editor CREATE vp for admin: 403 {"message": "Unauthorized", "status": "error"}
+editor DELETE admin vp: 403 {"message": "Unauthorized", "status": "error"}
+editor create own vp: 201 {"data": {"id": 7, "user_id": 3, "center_x": 121.5, "center_y": 25, "zoom": 10, "pitch": 0, "bearing": 0, "name": "qa-3 own", "point_type": "qa-3", "A
